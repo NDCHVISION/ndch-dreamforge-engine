@@ -5,7 +5,7 @@
  * Required app permissions (as shown in Meta App Dashboard)
  * ──────────────────────────────────────────────────────────
  *   instagram_basic
- *   instagram_content_publishing
+ *   instagram_content_publish
  *   pages_read_engagement
  *   business_management
  *   pages_show_list
@@ -92,8 +92,9 @@ class MetaError extends Error {
 }
 
 function hint(code: number, sub?: number): string {
+  // https://developers.facebook.com/docs/graph-api/guides/error-handling
   const map: Record<string, string> = {
-    '10':       'instagram_content_publishing not approved — submit for App Review',
+    '10':       'instagram_content_publish not approved — submit for App Review',
     '100':      'Invalid parameter — check video_url is public and video meets spec (H.264, AAC, .mp4, 9:16, 3-90 s)',
     '190':      'Access token invalid — run refreshPageToken() to get a fresh one',
     '190/460':  'Token expired — refresh INSTAGRAM_PAGE_TOKEN',
@@ -150,9 +151,6 @@ async function gql<T>(
 //
 // Page Access Tokens derived from a long-lived User Token never expire
 // — but if your User Token expires you must redo steps 1-3.
-
-/**
- * Excha// — but if your User Token expires you must redo steps 1-3.
 //
 // Use refreshPageToken() in a scheduled job before the 60-day window closes.
 
