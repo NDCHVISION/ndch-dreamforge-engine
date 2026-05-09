@@ -1,0 +1,34 @@
+name: Publish Instagram Reel
+
+on:
+  workflow_dispatch:
+    inputs:
+      video_url:
+        description: 'Public .mp4 URL (H.264, 9:16, 3-90s)'
+        required: true
+      caption:
+        description: 'Caption text (max 2200 chars)'
+        required: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - run: npm install -g tsx
+
+      - name: Publish Reel
+        env:
+          INSTAGRAM_PAGE_TOKEN:   ${{ secrets.INSTAGRAM_PAGE_TOKEN }}
+          IG_BUSINESS_ACCOUNT_ID: "17841463257757058"
+          META_APP_ID:            "1966454147334333"
+          META_APP_SECRET:        ${{ secrets.META_APP_SECRET }}
+          FB_PAGE_ID:             "782632291594234"
+          REEL_VIDEO_URL:         ${{ inputs.video_url }}
+          REEL_CAPTION:           ${{ inputs.caption }}
+        run: npx tsx publish-reel.ts
