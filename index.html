@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NDCH Dreamforge Engine</title>
+  <style>
+    :root {
+      --black:   #1A1A1A;
+      --gold:    #C6A94F;
+      --bone:    #F5F2EB;
+      --crimson: #DC143C;
+      --dark:    #111111;
+      --mid:     #242424;
+      --border:  #2E2E2E;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--dark);
+      color: var(--bone);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+    }
+
+    /* ── HEADER ── */
+    header {
+      border-bottom: 1px solid var(--border);
+      padding: 18px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .logo-mark {
+      width: 36px; height: 36px;
+      border: 2px solid var(--gold);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 800; color: var(--gold); letter-spacing: 0.5px;
+    }
+    .logo-text { font-size: 15px; font-weight: 700; letter-spacing: 1.5px; color: var(--bone); }
+    .logo-sub  { font-size: 10px; letter-spacing: 2px; color: var(--gold); text-transform: uppercase; }
+    .header-badge {
+      font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;
+      color: var(--gold); border: 1px solid var(--gold);
+      padding: 4px 10px; border-radius: 20px;
+    }
+
+    /* ── LAYOUT ── */
+    .container { max-width: 960px; margin: 0 auto; padding: 40px 24px; }
+
+    .hero { text-align: center; margin-bottom: 48px; }
+    .hero h1 {
+      font-size: clamp(28px, 4vw, 44px);
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      color: var(--bone);
+      line-height: 1.15;
+    }
+    .hero h1 span { color: var(--gold); }
+    .hero p {
+      margin-top: 12px;
+      color: #888;
+      font-size: 15px;
+      max-width: 520px;
+      margin-left: auto; margin-right: auto;
+      line-height: 1.6;
+    }
+
+    /* ── CARD ── */
+    .card {
+      background: var(--mid);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 28px;
+      margin-bottom: 20px;
+    }
+    .card-title {
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 16px;
+      font-weight: 700;
+    }
+
+    /* ── INPUTS ── */
+    textarea, input[type="text"] {
+      width: 100%;
+      background: var(--black);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--bone);
+      font-size: 15px;
+      padding: 14px 16px;
+      resize: vertical;
+      transition: border-color 0.2s;
+      font-family: inherit;
+      outline: none;
+    }
+    textarea:focus, input[type="text"]:focus { border-color: var(--gold); }
+    textarea::placeholder, input::placeholder { color: #555; }
+    textarea { min-height: 90px; }
+    .char-count { font-size: 11px; color: #555; text-align: right; margin-top: 6px; }
+
+    /* ── STYLE SELECTOR ── */
+    .style-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .style-card {
+      background: var(--black);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+    }
+    .style-card:hover { border-color: #444; }
+    .style-card.active { border-color: var(--gold); background: #1e1a0f; }
+    .style-card.auto-selected::after {
+      content: 'AUTO';
+      position: absolute;
+      top: 8px; right: 8px;
+      font-size: 8px; letter-spacing: 1.5px;
+      color: var(--gold); font-weight: 800;
+    }
+    .style-name { font-size: 12px; font-weight: 700; color: var(--bone); margin-bottom: 4px; }
+    .style-desc { font-size: 11px; color: #666; line-height: 1.4; }
+
+    /* ── DURATION ── */
+    .duration-row { display: flex; gap: 10px; flex-wrap: wrap; }
+    .dur-btn {
+      background: var(--black);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: #888;
+      font-size: 13px;
+      padding: 8px 18px;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: inherit;
+    }
+    .dur-btn:hover { border-color: #444; color: var(--bone); }
+    .dur-btn.active { border-color: var(--gold); color: var(--gold); background: #1e1a0f; }
+    .dur-note { font-size: 11px; color: #555; margin-top: 8px; }
+
+    /* ── GENERATE BUTTON ── */
+    .btn-generate {
+      width: 100%;
+      background: var(--gold);
+      color: var(--dark);
+      border: none;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      padding: 18px;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: inherit;
+    }
+    .btn-generate:hover { background: #d4b85a; transform: translateY(-1px); }
+    .btn-generate:active { transform: translateY(0); }
+    .btn-generate:disabled { background: #444; color: #666; cursor: not-allowed; transform: none; }
+
+    /* ── OUTPUT SECTION ── */
+    #output { display: none; }
+    #output.visible { display: block; }
+
+    .output-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .output-title { font-size: 20px; font-weight: 800; color: var(--bone); }
+    .output-meta { font-size: 12px; color: #666; }
+    .output-meta span { color: var(--gold); }
+
+    /* ── TABS ── */
+    .tabs { display: flex; gap: 4px; margin-bottom: 20px; border-bottom: 1px solid var(--border); }
+    .tab {
+      background: none;
+      border: none;
+      color: #666;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      padding: 10px 18px;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      transition: all 0.2s;
+      font-family: inherit;
+    }
+    .tab:hover { color: var(--bone); }
+    .tab.active { color: var(--gold); border-bottom-color: var(--gold); }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ── OUTPUT BLOCKS ── */
+    .output-block {
+      background: var(--black);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      margin-bottom: 16px;
+      overflow: hidden;
+    }
+    .output-block-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .output-block-label {
+      font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+      color: var(--gold); font-weight: 700;
+    }
+    .btn-copy {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      color: #888;
+      font-size: 11px;
+      padding: 4px 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: inherit;
+    }
+    .btn-copy:hover { border-color: var(--gold); color: var(--gold); }
+    .btn-copy.copied { border-color: #22c55e; color: #22c55e; }
+    .output-block-content {
+      padding: 16px;
+      font-size: 13.5px;
+      line-height: 1.7;
+      color: #ccc;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .output-block-content.script { font-size: 15px; color: var(--bone); }
+    .output-block-content.mono {
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      color: #aaa;
+    }
+
+    /* ── SEGMENT TIMELINE ── */
+    .timeline { display: flex; flex-direction: column; gap: 12px; padding: 16px; }
+    .segment {
+      display: grid;
+      grid-template-columns: 60px 1fr;
+      gap: 12px;
+      align-items: start;
+    }
+    .seg-time { font-size: 11px; color: var(--gold); font-weight: 700; font-family: monospace; padding-top: 2px; }
+    .seg-text { font-size: 14px; color: var(--bone); line-height: 1.5; }
+    .seg-note { font-size: 11px; color: #555; margin-top: 3px; font-style: italic; }
+
+    /* ── CHECKLIST ── */
+    .checklist { padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+    .check-item {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 10px 14px;
+      background: var(--mid);
+      border-radius: 7px;
+      border: 1px solid var(--border);
+    }
+    .check-num {
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      border: 1px solid var(--gold);
+      color: var(--gold);
+      font-size: 11px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; margin-top: 1px;
+    }
+    .check-text { font-size: 13px; color: #aaa; line-height: 1.5; }
+    .check-text strong { color: var(--bone); }
+
+    /* ── COST BADGE ── */
+    .cost-row {
+      display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px;
+    }
+    .cost-badge {
+      background: var(--black);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 10px 16px;
+      font-size: 12px;
+      color: #888;
+    }
+    .cost-badge strong { display: block; font-size: 18px; color: var(--bone); margin-bottom: 2px; }
+    .cost-badge.total strong { color: var(--gold); }
+
+    /* ── EXPORT BUTTON ── */
+    .btn-export {
+      background: none;
+      border: 1px solid var(--gold);
+      border-radius: 8px;
+      color: var(--gold);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      padding: 12px 24px;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: inherit;
+      width: 100%;
+      margin-top: 16px;
+    }
+    .btn-export:hover { background: #1e1a0f; }
+
+    /* ── NEXT SUGGESTIONS ── */
+    .suggestions { display: flex; flex-direction: column; gap: 10px; }
+    .suggestion {
+      background: var(--black);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 16px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .suggestion:hover { border-color: var(--gold); }
+    .sug-text { font-size: 13px; color: #aaa; }
+    .sug-style { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--gold); margin-top: 3px; }
+    .sug-arrow { color: var(--gold); font-size: 18px; }
+
+    /* ── DIVIDER ── */
+    .divider { border: none; border-top: 1px solid var(--border); margin: 28px 0; }
+
+    /* ── FOOTER ── */
+    footer {
+      text-align: center;
+      padding: 32px;
+      font-size: 11px;
+      color: #444;
+      letter-spacing: 1px;
+      border-top: 1px solid var(--border);
+    }
+    footer span { color: var(--gold); }
+
+    /* ── SPINNER ── */
+    .spinner {
+      display: inline-block;
+      width: 16px; height: 16px;
+      border: 2px solid #444;
+      border-top-color: var(--gold);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+      margin-right: 8px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @media (max-width: 600px) {
+      .style-grid { grid-template-columns: 1fr; }
+      header { padding: 14px 16px; }
+      .container { padding: 24px 16px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-mark">NV</div>
+    <div>
+      <div class="logo-text">NDCH DREAMFORGE</div>
+      <div class="logo-sub">Dreamforge Engine</div>
+    </div>
+  </div>
+  <div class="header-badge">Dreamforge · v1.0</div>
+</header>
+
+<div class="container">
+
+  <div class="hero">
+    <h1>NDCH Dreamforge Engine</h1>
+    <p>Input a concept. The engine auto-selects your visual style, writes the voiceover script, and generates your complete production package — ready for Runway, ElevenLabs, and Instagram.</p>
+  </div>
+
+  <!-- INPUT SECTION -->
+  <div class="card">
+    <div class="card-title">01 — Your Concept</div>
+    <textarea id="conceptInput" placeholder="e.g. the value of being like water — patient, persistent, unstoppable. over time it wears down even the hardest mountains..." rows="3"></textarea>
+    <div class="char-count"><span id="charCount">0</span> characters</div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">02 — Visual Style</div>
+    <div class="style-grid" id="styleGrid">
+      <div class="style-card" data-style="fractal" onclick="selectStyle('fractal', true)">
+        <div class="style-name">Fractal Mindscape</div>
+        <div class="style-desc">Dark cathedral architecture built from the quote itself. Infinite recursive geometry. Best for: mindset, philosophy, nature.</div>
+      </div>
+      <div class="style-card" data-style="identity" onclick="selectStyle('identity', true)">
+        <div class="style-name">Identity Shift</div>
+        <div class="style-desc">One figure, many versions — fear, struggle, triumph visible at once. Best for: transformation, athletes, breakthrough.</div>
+      </div>
+      <div class="style-card" data-style="hud" onclick="selectStyle('hud', true)">
+        <div class="style-name">Mind Labyrinth HUD</div>
+        <div class="style-desc">Subconscious as a living circuit board — symbols, diagrams, neural maps. Best for: strategy, discipline, stoicism.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">03 — Target Duration</div>
+    <div class="duration-row">
+      <button class="dur-btn" data-dur="15" onclick="selectDuration(15)">15s</button>
+      <button class="dur-btn" data-dur="30" onclick="selectDuration(30)">30s</button>
+      <button class="dur-btn active" data-dur="42" onclick="selectDuration(42)">42s ★</button>
+      <button class="dur-btn" data-dur="60" onclick="selectDuration(60)">60s</button>
+    </div>
+    <div class="dur-note" id="durNote">42s — sweet spot for saves + shares (dominant 2026 algorithm signal). Recommended for motivational storytelling.</div>
+  </div>
+
+  <button class="btn-generate" id="generateBtn" onclick="generateReel()">
+    Generate Production Package
+  </button>
+
+  <hr class="divider" />
+
+  <!-- OUTPUT SECTION -->
+  <div id="output">
+    <div class="output-header">
+      <div>
+        <div class="output-title" id="outputTitle">Reel Brief</div>
+        <div class="output-meta">Style: <span id="metaStyle">—</span> &nbsp;·&nbsp; Duration: <span id="metaDuration">—</span> &nbsp;·&nbsp; Words: <span id="metaWords">—</span></div>
+      </div>
+      <button class="btn-export" style="width:auto" onclick="exportJSON()">Export Full JSON</button>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('visual')">Visual Prompt</button>
+      <button class="tab" onclick="switchTab('voice')">Voiceover Script</button>
+      <button class="tab" onclick="switchTab('caption')">Instagram Caption</button>
+      <button class="tab" onclick="switchTab('checklist')">Checklist</button>
+    </div>
+
+    <!-- VISUAL TAB -->
+    <div class="tab-panel active" id="tab-visual">
+      <div class="output-block">
+        <div class="output-block-header">
+          <div class="output-block-label">Runway / Kling — Positive Prompt</div>
+          <button class="btn-copy" onclick="copyBlock('visualPrompt', this)">Copy</button>
+        </div>
+        <div class="output-block-content" id="visualPrompt"></div>
+      </div>
+      <div class="output-block">
+        <div class="output-block-header">
+          <div class="output-block-label">Negative Prompt</div>
+          <button class="btn-copy" onclick="copyBlock('negativePrompt', this)">Copy</button>
+        </div>
+        <div class="output-block-content mono" id="negativePrompt"></div>
+      </div>
+      <div class="output-block">
+        <div class="output-block-header">
+          <div class="output-block-label">Camera & Scene Notes</div>
+        </div>
+        <div class="output-block-content mono" id="sceneNotes"></div>
+      </div>
+    </div>
+
+    <!-- VOICE TAB -->
+    <div class="tab-panel" id="tab-voice">
+      <div class="output-block">
+        <div class="output-block-header">
+          <div class="output-block-label">Full Script — Paste into ElevenLabs</div>
+          <button class="btn-copy" onclick="copyBlock('fullScript', this)">Copy</button>
+        </div>
+        <div class="output-block-content script" id="fullScript"></div>
+      </div>
+      <div class="output-block">
+        <div class="output-block-header">
+          <div class="output-block-label">Scene-by-Scene Breakdown</div>
+        </div>
+        <div class="timeline" id="scriptTimeline"></div>
+      </div>
+      <div class="output-block">
+        <div class="output-block-header">
+          <div class="output-block-label">ElevenLabs Settings</div>
+          <button class="btn-copy" onclick="copyBlock('elSettings', this)">Copy</button>
+        </div>
+        <div class="output-block-content mono" id="elSettings"></div>
+      </div>
+    </div>
+
+    <!-- CAPTION TAB -->
+    <div class="tab-panel" id="tab-caption">
+      <div class="output-block">
+        <div class="output-block-header">
+          <div class="output-block-label">Instagram Caption + Hashtags</div>
+          <button class="btn-copy" onclick="copyBlock('igCaption', this)">Copy</button>
+        </div>
+        <div class="output-block-content" id="igCaption"></div>
+      </div>
+      <div class="output-block">
+        <div class="output-block-header">
+          <div class="output-block-label">Subtitle Styling</div>
+        </div>
+        <div class="output-block-content mono" id="subtitleConfig"></div>
+      </div>
+      <div class="cost-row">
+        <div class="cost-badge"><strong id="costVideo">$2.10</strong>Video (Runway Turbo)</div>
+        <div class="cost-badge"><strong>$0.07</strong>Voice (ElevenLabs)</div>
+        <div class="cost-badge"><strong>$0.06</strong>Script (Claude API)</div>
+        <div class="cost-badge total"><strong id="costTotal">~$2.23</strong>Total per reel</div>
+      </div>
+    </div>
+
+    <!-- CHECKLIST TAB -->
+    <div class="tab-panel" id="tab-checklist">
+      <div class="output-block">
+        <div class="output-block-header">
+          <div class="output-block-label">Production Checklist</div>
+        </div>
+        <div class="checklist" id="checklist"></div>
+      </div>
+      <div class="card" style="margin-top:20px">
+        <div class="card-title">Next Reel Ideas</div>
+        <div class="suggestions" id="suggestions"></div>
+      </div>
+    </div>
+
+  </div><!-- /output -->
+
+</div><!-- /container -->
+
+<footer>NDCH VISION &nbsp;·&nbsp; <span>Dreamforge Engine</span> &nbsp;·&nbsp; v1.0</footer>
+
+<script>
+// ═══════════════════════════════════════════════════
+//  ENGINE CORE
+// ═══════════════════════════════════════════════════
+
+let selectedStyle = 'fractal';
+let selectedDuration = 42;
+let manualStyleOverride = false;
+let currentReel = null;
+
+const STYLES = {
+  fractal: {
+    name: 'Fractal Mindscape',
+    keywords: ['water','mountain','river','time','patience','nature','earth','fire','mind','inner','thought','belief','perspective','consciousness','truth','philosophy','universe','endless'],
+    prompt: (concept) => `Create a looping vertical cinematic scene in a surreal, psychologically intense style. The environment draws inspiration from: "${concept}". Instead of literal text architecture, the space is filled with impossible geological and elemental formations — crystalline canyon walls of ancient black stone (#1A1A1A) split by rivers of living gold light (#C6A94F) that flow upward, sideways, and through recursive gorges defying gravity. The elements that define the concept — ${extractElements(concept)} — form the architectural DNA of the environment. Bone-white (#F5F2EB) light threads weave through the stone like veins. Crimson fractures (#DC143C) appear as the concept's tension points reveal themselves — not violent, but inevitable. The camera moves in a slow, deliberate forward drift through this infinite space — always moving, never arriving. The mood is vast, patient, and quietly unstoppable. The scale is geological — compressed into a surreal loop. Vertical 9:16, center of frame kept open for subtitle overlay. Seamless loop. No text visible in the visual.`,
+    negative: 'text, words, logos, humans, animals, bright colors, blue, green, white sky, realistic photography, daytime lighting, rushing chaotic motion',
+    sceneNotes: `Camera: Slow forward drift, subtle vertical undulation — like breathing\nMotion: Deliberate, inevitable — nothing is rushed\nLoop: Hard cut from peak visual back to opening darkness\nKey: All motion should feel patient and unstoppable, not urgent`
+  },
+  identity: {
+    name: 'Time-Sliced Identity',
+    keywords: ['transform','become','fear','courage','warrior','athlete','strength','overcome','break','rise','fight','survive','evolve','identity','self','who you are','becoming'],
+    prompt: (concept) => `Generate a surreal 9:16 vertical character scene embodying: "${concept}". In the center stands one human figure, but AI-driven time-slicing reveals many overlapping versions of them simultaneously — the versions that reflect ${extractEmotions(concept)}. Use black #1A1A1A for the background void, a subtle bone #F5F2EB gradient behind the character for depth, gold #C6A94F for outline contours and symbolic growth trails, and crimson #DC143C for flashes of inner conflict within the torso, heart, and eyes. The figure continuously morphs between psychological states using non-human, ultra-fluid transitions — limbs ghosted in multiple positions, faces blending between emotions within a single frame. The style is hyper-clean, cinematic, and psychologically charged. Negative space at top and bottom for text overlay. The visual should feel like an impossible sculpture made of time.`,
+    negative: 'background clutter, multiple people, crowds, realistic photography, daytime, blue sky, green, white, text, words, logos',
+    sceneNotes: `Camera: Locked or very slow push in on the central figure\nMotion: The figure morphs — camera stays focused\nOverlap: 5-8 semi-transparent simultaneous poses at peak\nKey: Show the full journey from broken to triumphant within single frame`
+  },
+  hud: {
+    name: 'Mind Labyrinth HUD',
+    keywords: ['strategy','discipline','system','stoic','vision','long-term','focus','structure','principle','code','law','order','process','consistency','habit','ancient','wisdom','philosophy'],
+    prompt: (concept) => `Design a looping surreal 'mind interface' scene embodying the concept: "${concept}". The background is pure black #1A1A1A. Over it, ultra-precise gold #C6A94F lines form an evolving labyrinth of geometric diagrams, nodes, and pathways — like a hybrid between a neural map, a circuit board, and an ancient ritual diagram. The core symbols of this concept — ${extractSymbols(concept)} — materialize as bone #F5F2EB glyphs and icons, appearing and rearranging according to invisible logic. Crimson #DC143C appears as energetic pulses and breakthrough flashes whenever tension or transformation is implied. Motion is deliberate, hypnotic, and mathematically complex — with non-human levels of micro-movement. Central space maintained for subtitle overlay. The overall feel: watching an AI-augmented mind reorganize itself around a new belief.`,
+    negative: 'humans, animals, realistic photography, nature scenes, blue, green, white, chaotic motion, text, words, logos, clutter',
+    sceneNotes: `Camera: Locked — the HUD elements animate, not the camera\nMotion: All movement is precise, mathematical, deliberate\nPulse: Crimson energy travels through the labyrinth on emotional beats\nKey: Should feel like watching a mind process and internalize a truth`
+  }
+};
+
+const DURATION_NOTES = {
+  15: '15s — Maximum reach & new followers. Highest completion rate. Use for hook-only or single-line concepts.',
+  30: '30s — Strong balance of reach and saves. Good for tight 2-beat concepts.',
+  42: '42s — Sweet spot for saves + shares (dominant 2026 algorithm signal). Recommended for motivational storytelling.',
+  60: '60s — Maximum depth and emotional arc. Highest save rate. Use for complex or multi-part concepts.'
+};
+
+// ─── HELPERS ───
+function extractElements(concept) {
+  const words = concept.toLowerCase();
+  const elementMap = [
+    ['water','river','ocean','stream','rain'],
+    ['mountain','stone','rock','earth','ground'],
+    ['fire','flame','heat','burn'],
+    ['wind','air','breath','sky'],
+    ['time','years','patience','slow','persist']
+  ];
+  const found = [];
+  elementMap.forEach(group => {
+    if (group.some(w => words.includes(w))) found.push(group[0]);
+  });
+  return found.length ? found.join(', ') : 'the core metaphor of this concept';
+}
+
+function extractEmotions(concept) {
+  return 'fear, struggle, determination, and triumph — mirroring the emotional journey described in: ' + concept.substring(0, 60);
+}
+
+function extractSymbols(concept) {
+  const w = concept.toLowerCase();
+  const symbols = [];
+  if (w.match(/discipl|habit|daily|routine/)) symbols.push('discipline');
+  if (w.match(/vision|goal|future|long/)) symbols.push('vision');
+  if (w.match(/courage|fear|brave/)) symbols.push('courage');
+  if (w.match(/sacrifice|cost|price|pain/)) symbols.push('sacrifice');
+  if (w.match(/focus|clarity|clear/)) symbols.push('focus');
+  if (symbols.length === 0) symbols.push('persistence', 'clarity', 'purpose');
+  return symbols.join(', ');
+}
+
+function autoSelectStyle(concept) {
+  if (manualStyleOverride) return;
+  const c = concept.toLowerCase();
+  let scores = { fractal: 0, identity: 0, hud: 0 };
+  Object.entries(STYLES).forEach(([key, s]) => {
+    s.keywords.forEach(kw => { if (c.includes(kw)) scores[key]++; });
+  });
+  const best = Object.entries(scores).sort((a,b) => b[1]-a[1])[0][0];
+  selectStyle(best, false);
+}
+
+// ─── UI CONTROLS ───
+function selectStyle(style, manual) {
+  if (manual) manualStyleOverride = true;
+  selectedStyle = style;
+  document.querySelectorAll('.style-card').forEach(c => {
+    c.classList.remove('active','auto-selected');
+  });
+  const card = document.querySelector(`[data-style="${style}"]`);
+  if (card) {
+    card.classList.add('active');
+    if (!manual) card.classList.add('auto-selected');
+  }
+}
+
+function selectDuration(dur) {
+  selectedDuration = dur;
+  document.querySelectorAll('.dur-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector(`[data-dur="${dur}"]`).classList.add('active');
+  document.getElementById('durNote').textContent = DURATION_NOTES[dur];
+}
+
+document.getElementById('conceptInput').addEventListener('input', function() {
+  document.getElementById('charCount').textContent = this.value.length;
+  if (this.value.length > 20) autoSelectStyle(this.value);
+});
+
+// ─── VOICEOVER GENERATOR ───
+function generateVoiceover(concept, duration) {
+  const c = concept.toLowerCase();
+  const isNature = c.match(/water|mountain|river|fire|earth|wind|ocean|storm/);
+  const isTransform = c.match(/transform|become|fear|overcome|break|rise|courage|warrior/);
+  const isPhilosophy = c.match(/truth|mind|belief|reality|perspective|wisdom|ancient/);
+  const isDiscipline = c.match(/discipl|habit|daily|focus|vision|system|strategy/);
+
+  let segments = [];
+  const durFactor = duration / 42;
+
+  if (isNature) {
+    segments = [
+      { id:'hook', start:'0:00', end:'0:03', text:'What if the most unstoppable force in the world... made no sound at all?', note:'Quiet. Almost a whisper. Pause on "no sound".' },
+      { id:'setup', start:'0:03', end:'0:10', text:`${getCoreMetaphor(concept)} It doesn't attack. It doesn't force. It simply... never stops.`, note:'Measured. Each sentence its own breath.' },
+      { id:'turn1', start:'0:10', end:'0:18', text:`It finds the smallest opening... and shows up again tomorrow. And the day after.`, note:'Long pause after "smallest opening".' },
+      { id:'payoff', start:'0:18', end:'0:26', text:`Given enough time — what seemed immovable... yields. Always.`, note:'Build to "yields" then let it arrive quietly.' },
+      { id:'mirror', start:'0:26', end:'0:34', text:`Most people stop because they don't see results fast enough. But the results are just the resistance... finally cracking.`, note:'Warmer here — this is the audience mirror moment.' },
+      { id:'close', start:'0:34', end:'0:42', text:`${getIdentityClose(concept)} Show up. Every day. And let time do what force never could.`, note:'Authoritative. Short sentences. Equal weight on each.' }
+    ];
+  } else if (isTransform) {
+    segments = [
+      { id:'hook', start:'0:00', end:'0:03', text:'The version of you that wins... is already inside you.', note:'Direct. Confident. No hesitation.' },
+      { id:'setup', start:'0:03', end:'0:10', text:`You haven't been failing. You've been becoming. And ${getCoreMetaphor(concept)}.`, note:'Reframing tone. Shift from accusation to revelation.' },
+      { id:'turn1', start:'0:10', end:'0:18', text:'Every setback was data. Every rejection was direction. You were being shaped.', note:'Rhythmic. Three short declarative beats.' },
+      { id:'payoff', start:'0:18', end:'0:26', text:'The moment you stopped asking "why me" and started asking "what now"... everything changed.', note:'Pause after "why me". "What now" lands hard.' },
+      { id:'mirror', start:'0:26', end:'0:34', text:'You are not behind. You are not broken. You are mid-transformation.', note:'Three equal statements. Build with each one.' },
+      { id:'close', start:'0:34', end:'0:42', text:`${getIdentityClose(concept)} Do the work. And trust the version of you that's already on the other side.`, note:'Quiet authority. The listener should feel seen.' }
+    ];
+  } else {
+    segments = [
+      { id:'hook', start:'0:00', end:'0:03', text:'The thing most people never understand about success...', note:'Trailing off — creates curiosity gap immediately.' },
+      { id:'setup', start:'0:03', end:'0:10', text:`It's not about intensity. It's about ${getCorePrinciple(concept)}.`, note:'Land the core truth simply and without apology.' },
+      { id:'turn1', start:'0:10', end:'0:18', text:'One percent better every day. Not perfect. Not explosive. Just consistent.', note:'Three beats. Let each one breathe.' },
+      { id:'payoff', start:'0:18', end:'0:26', text:`In a year, that one percent compounds into something unrecognizable. That's the game most people never play.`, note:'Build through "compounds" — land "unrecognizable" with weight.' },
+      { id:'mirror', start:'0:26', end:'0:34', text:'You already know what to do. You just underestimate what showing up every day actually builds.', note:'Direct. Not accusatory — it\'s an invitation.' },
+      { id:'close', start:'0:34', end:'0:42', text:`${getIdentityClose(concept)} Stop waiting for the moment. Be the moment.`, note:'Short and final. Silence after the last word.' }
+    ];
+  }
+
+  // Scale timestamps for non-42s durations
+  if (duration !== 42) {
+    segments = scaleSegments(segments, duration);
+  }
+
+  return segments;
+}
+
+function scaleSegments(segs, targetDur) {
+  const factor = targetDur / 42;
+  return segs.map(s => {
+    const start = parseTs(s.start) * factor;
+    const end = parseTs(s.end) * factor;
+    return { ...s, start: fmtTs(start), end: fmtTs(end) };
+  });
+}
+
+function parseTs(ts) {
+  const [m,s] = ts.split(':').map(Number);
+  return m * 60 + s;
+}
+
+function fmtTs(secs) {
+  const m = Math.floor(secs / 60);
+  const s = Math.round(secs % 60);
+  return `${m}:${String(s).padStart(2,'0')}`;
+}
+
+function getCoreMetaphor(concept) {
+  if (concept.toLowerCase().includes('water')) return 'Water doesn\'t fight the mountain.';
+  if (concept.toLowerCase().includes('fire')) return 'Fire doesn\'t negotiate with the cold.';
+  if (concept.toLowerCase().includes('river')) return 'The river doesn\'t ask permission.';
+  return 'The force that moves worlds doesn\'t announce itself.';
+}
+
+function getCorePrinciple(concept) {
+  if (concept.toLowerCase().match(/discipl|habit/)) return 'discipline';
+  if (concept.toLowerCase().match(/focus|vision/)) return 'singular focus';
+  if (concept.toLowerCase().match(/patience|slow|time/)) return 'patience';
+  return 'relentless consistency';
+}
+
+function getIdentityClose(concept) {
+  if (concept.toLowerCase().includes('water')) return 'Be the water.';
+  if (concept.toLowerCase().includes('fire')) return 'Be the fire.';
+  if (concept.toLowerCase().match(/mountain|rock|stone/)) return 'Be the mountain.';
+  if (concept.toLowerCase().match(/discipl|habit/)) return 'Be the discipline.';
+  return 'Be the force.';
+}
+
+// ─── CAPTION GENERATOR ───
+function generateCaption(concept, style) {
+  const c = concept.toLowerCase();
+  let hookLine = '', bodyLines = '', cta = '';
+
+  if (c.match(/water|river|ocean/)) {
+    hookLine = 'The river doesn\'t rush. It just never stops.';
+    bodyLines = 'Most people are looking for the shortcut. The breakthrough. The overnight win.\n\nBut the people who actually change their lives?\n\nThey showed up on days when nothing happened.\n\nAnd then again the next day.\n\nAnd the day after that.';
+    cta = 'Save this for the day you want to quit. 💧';
+  } else if (c.match(/transform|become|overcome/)) {
+    hookLine = 'You\'re not behind. You\'re mid-transformation.';
+    bodyLines = 'The caterpillar doesn\'t know it\'s becoming a butterfly.\n\nIt just knows it has to go through the process.\n\nStop judging your chapter 1 against someone else\'s chapter 10.\n\nYou are exactly where you need to be.';
+    cta = 'Tag someone who needs to hear this today. 🔥';
+  } else {
+    hookLine = 'The secret most people never figure out.';
+    bodyLines = 'Success isn\'t an event. It\'s a direction.\n\nYou don\'t arrive at it. You build it — one decision at a time.\n\nThe person you\'re becoming is built in the quiet moments.\n\nNot in the spotlight. In the work.';
+    cta = 'Save this and come back to it. 🏆';
+  }
+
+  const hashtags = '#motivation #mindset #discipline #growthmindset #successmindset #resilience #entrepreneurmindset #stoic #personaldevelopment #motivationalvideo #instagramreels #inspirationalquotes #mentalstrength #ndchvision';
+
+  return `${hookLine}\n\n${bodyLines}\n\n${cta}\n\n${hashtags}`;
+}
+
+// ─── MAIN GENERATOR ───
+function generateReel() {
+  const concept = document.getElementById('conceptInput').value.trim();
+  if (!concept || concept.length < 15) {
+    document.getElementById('conceptInput').focus();
+    document.getElementById('conceptInput').style.borderColor = 'var(--crimson)';
+    setTimeout(() => document.getElementById('conceptInput').style.borderColor = '', 1500);
+    return;
+  }
+
+  const btn = document.getElementById('generateBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Generating...';
+
+  setTimeout(() => {
+    const style = STYLES[selectedStyle];
+    const segments = generateVoiceover(concept, selectedDuration);
+    const fullScript = segments.map(s => s.text).join(' ');
+    const caption = generateCaption(concept, selectedStyle);
+    const wordCount = fullScript.split(' ').length;
+
+    // Store reel data
+    currentReel = {
+      reel_id: `reel_${Date.now()}`,
+      created: new Date().toISOString().split('T')[0],
+      concept: concept,
+      style: selectedStyle,
+      style_name: style.name,
+      duration: selectedDuration,
+      visual_prompt: style.prompt(concept),
+      negative_prompt: style.negative,
+      scene_notes: style.sceneNotes,
+      voiceover: { segments, full_text: fullScript, word_count: wordCount },
+      instagram_caption: caption,
+      elevenLabs: {
+        model: 'eleven_multilingual_v2',
+        voice: 'Adam (pNInz6obpgDQGcFmaJgB)',
+        stability: 0.42, similarity_boost: 0.80, style: 0.60, speed: 0.88
+      }
+    };
+
+    // Populate output
+    document.getElementById('outputTitle').textContent = concept.substring(0, 50) + (concept.length > 50 ? '...' : '');
+    document.getElementById('metaStyle').textContent = style.name;
+    document.getElementById('metaDuration').textContent = selectedDuration + 's';
+    document.getElementById('metaWords').textContent = wordCount + ' words';
+
+    // Visual tab
+    document.getElementById('visualPrompt').textContent = style.prompt(concept);
+    document.getElementById('negativePrompt').textContent = style.negative;
+    document.getElementById('sceneNotes').textContent = style.sceneNotes;
+
+    // Voice tab
+    document.getElementById('fullScript').textContent = fullScript;
+    const timeline = document.getElementById('scriptTimeline');
+    timeline.innerHTML = segments.map(s => `
+      <div class="segment">
+        <div class="seg-time">${s.start}–${s.end}</div>
+        <div>
+          <div class="seg-text">${s.text}</div>
+          <div class="seg-note">${s.note}</div>
+        </div>
+      </div>
+    `).join('');
+    document.getElementById('elSettings').textContent = `Model:           eleven_multilingual_v2
+Recommended Voice: Adam — pNInz6obpgDQGcFmaJgB (deep authority)
+  Alternative:     Antoni — ErXwobaYiN019PkySvjV (warm, genuine)
+
+Stability:       0.42   (natural variation — feels human)
+Similarity Boost: 0.80
+Style:           0.60
+Speaker Boost:   ON
+Speed:           0.88   (slightly slower = more intentional)
+
+Post-processing:
+  Normalize to:  -14 LUFS
+  Low-end boost: +2dB at 80Hz (warmth)
+  Presence boost: +1.5dB at 3kHz (cinematic clarity)`;
+
+    // Caption tab
+    document.getElementById('igCaption').textContent = caption;
+    document.getElementById('subtitleConfig').textContent = `Font:      Bebas Neue (fallback: Montserrat ExtraBold)
+Size:      52pt
+Position:  Center frame — vertical 60%
+Max words per line: 4
+
+Colors:
+  Default word:    #F5F2EB (bone)
+  Active word:     #C6A94F (gold)  ← highlight as voiceover hits
+  Emotional peaks: #DC143C (crimson) — applies to:
+                   dangerous, gone, quit, cracking, force, never, stops
+
+Animation: Word-by-word fade in, synced to voiceover timestamps`;
+
+    // Checklist tab
+    const checks = [
+      'Generate looping visual using the Runway/Kling prompt (Visual tab)',
+      'Generate voiceover in ElevenLabs — paste Full Script, apply settings above',
+      'Post-process audio: normalize to -14 LUFS, apply low-end warmth',
+      'Import video + audio into CapCut or DaVinci Resolve',
+      'Add subtitles — import SRT or use Auto-Caption, apply color config',
+      'Add dark ambient music at -18dB (Artlist.io: "dark cinematic ambient")',
+      'Export at 1080×1920, 24fps, H.264',
+      'Post to Instagram — engage every comment in first 30 minutes'
+    ];
+    document.getElementById('checklist').innerHTML = checks.map((c,i) => `
+      <div class="check-item">
+        <div class="check-num">${i+1}</div>
+        <div class="check-text">${c}</div>
+      </div>`).join('');
+
+    // Next suggestions
+    const nextIdeas = [
+      { concept: 'The value of silence — most people talk, winners are building', style: 'Mind Labyrinth HUD' },
+      { concept: 'Pressure creates diamonds — everything valuable was forged under weight', style: 'Identity Shift' },
+      { concept: 'You were not built for comfort — discomfort is the signal you are growing', style: 'Fractal Mindscape' }
+    ];
+    document.getElementById('suggestions').innerHTML = nextIdeas.map(s => `
+      <div class="suggestion" onclick="loadSuggestion('${s.concept.replace(/'/g,"\\'")}')">
+        <div>
+          <div class="sug-text">${s.concept}</div>
+          <div class="sug-style">${s.style}</div>
+        </div>
+        <div class="sug-arrow">→</div>
+      </div>`).join('');
+
+    // Show output
+    document.getElementById('output').classList.add('visible');
+    document.getElementById('output').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    btn.disabled = false;
+    btn.innerHTML = 'Generate Production Package';
+  }, 800);
+}
+
+function loadSuggestion(concept) {
+  document.getElementById('conceptInput').value = concept;
+  document.getElementById('charCount').textContent = concept.length;
+  manualStyleOverride = false;
+  autoSelectStyle(concept);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ─── TABS ───
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById(`tab-${tab}`).classList.add('active');
+  event.target.classList.add('active');
+}
+
+// ─── COPY ───
+function copyBlock(id, btn) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  navigator.clipboard.writeText(el.textContent).then(() => {
+    btn.textContent = 'Copied ✓';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+// ─── EXPORT JSON ───
+function exportJSON() {
+  if (!currentReel) return;
+  const blob = new Blob([JSON.stringify(currentReel, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${currentReel.reel_id}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// Init
+selectStyle('fractal', false);
+selectDuration(42);
+</script>
+</body>
+</html>
