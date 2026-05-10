@@ -1,18 +1,25 @@
-name: Publish Instagram Reel
+name: Generate & Publish Instagram Reel
 
 on:
   workflow_dispatch:
     inputs:
-      video_url:
-        description: 'Public .mp4 URL (H.264, 9:16, 3-90s)'
+      script:
+        description: 'Voiceover script — spoken in your ElevenLabs voice'
+        required: true
+      video_prompt:
+        description: 'Visual prompt for Runway Gen-4 (describe the scene/mood)'
         required: true
       caption:
-        description: 'Caption text (max 2200 chars)'
+        description: 'Instagram caption (max 2200 chars, include hashtags)'
         required: false
 
 jobs:
-  publish:
+  generate-and-publish:
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: write   # required to create GitHub Releases
+
     steps:
       - uses: actions/checkout@v4
 
@@ -20,15 +27,27 @@ jobs:
         with:
           node-version: '24'
 
-      - run: npm install -g tsx
+      - name: Install tools
+        run: |
+          npm install -g tsx
+          sudo apt-get install -y ffmpeg
 
-      - name: Publish Reel
+      - name: Generate voiceover + video
+        env:
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+          RUNWAY_API_KEY:     ${{ secrets.RUNWAY_API_KEY }}
+          GITHUB_TOKEN:       ${{ secrets.GITHUB_TOKEN }}
+          REEL_SCRIPT:        ${{ inputs.script }}
+          REEL_PROMPT:        ${{ inputs.video_prompt }}
+        run: npx tsx generate-reel.ts
+
+      - name: Publish to Instagram
         env:
           INSTAGRAM_PAGE_TOKEN:   ${{ secrets.INSTAGRAM_PAGE_TOKEN }}
           IG_BUSINESS_ACCOUNT_ID: "17841463257757058"
           META_APP_ID:            "1966454147334333"
           META_APP_SECRET:        ${{ secrets.META_APP_SECRET }}
           FB_PAGE_ID:             "782632291594234"
-          REEL_VIDEO_URL:         ${{ inputs.video_url }}
+          REEL_VIDEO_URL:         ${{ env.REEL_VIDEO_URL }}
           REEL_CAPTION:           ${{ inputs.caption }}
         run: npx tsx publish-reel.ts
