@@ -304,7 +304,7 @@ function resolveSegmentDurationSecs(
   const startSeconds = segment.timestampStartSeconds;
   const endSeconds = segment.timestampEndSeconds ?? nextSegment?.timestampStartSeconds;
 
-  if (startSeconds === undefined || endSeconds === undefined || endSeconds <= startSeconds) {
+  if (startSeconds === undefined || endSeconds === undefined || endSeconds < startSeconds) {
     return undefined;
   }
 
