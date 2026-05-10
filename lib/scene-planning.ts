@@ -115,7 +115,7 @@ function looksPunchyOpeningLine(text: string): boolean {
   const words = countWords(text);
   if (words === 0 || words > 6) return false;
   if (isLikelyFillerTinyUnit(text)) return false;
-  return /[.!?]$/.test(text.trim()) || /^[A-Z0-9]/.test(text.trim());
+  return /[.!?]$/.test(text.trim());
 }
 
 function looksDeclarativeClosingLine(text: string): boolean {
@@ -272,11 +272,11 @@ function ensureMinimumUnitCount(units: NarrationUnit[], minimumCount: number): N
     expanded.splice(
       splitIndex,
       1,
-      ...pieces.map((text, index) => ({
+      ...pieces.map((text, pieceIndex) => ({
         text,
         promptText: unitToSplit.promptText,
         durationSecs: unitToSplit.durationSecs !== undefined
-          ? splitUnitDurationSecs(unitToSplit.durationSecs, pieceWordCounts[index], totalPieceWords, pieces.length)
+          ? splitUnitDurationSecs(unitToSplit.durationSecs, pieceWordCounts[pieceIndex], totalPieceWords, pieces.length)
           : undefined,
         sourceSegmentIndex: unitToSplit.sourceSegmentIndex,
       }))
