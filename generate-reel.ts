@@ -1015,9 +1015,9 @@ interface SubtitleCue {
   text: string;
 }
 
-function formatSrtTimestamp(seconds: number): string {
+function formatSrtTimestamp(seconds: number, contextLabel: string): string {
   if (seconds < 0) {
-    throw new Error(`Subtitle timestamp cannot be negative: ${seconds}`);
+    throw new Error(`Subtitle timestamp cannot be negative (${contextLabel}): ${seconds}`);
   }
   const totalMillis = Math.round(seconds * 1000);
   const hrs = Math.floor(totalMillis / 3_600_000);
@@ -1068,7 +1068,7 @@ function writeSubtitleSidecar(plan: ResolvedProductionPlan, sceneTimeline: Scene
   const subtitlePath = join(TMP, `reel-subtitles-${Date.now()}.srt`);
   const srt = cues
     .map((cue, index) => (
-      `${index + 1}\n${formatSrtTimestamp(cue.startSeconds)} --> ${formatSrtTimestamp(cue.endSeconds)}\n${cue.text}\n`
+      `${index + 1}\n${formatSrtTimestamp(cue.startSeconds, `cue ${index + 1} start`)} --> ${formatSrtTimestamp(cue.endSeconds, `cue ${index + 1} end`)}\n${cue.text}\n`
     ))
     .join('\n');
   writeFileSync(subtitlePath, srt);

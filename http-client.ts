@@ -28,6 +28,22 @@ function isRetryableError(error: unknown): boolean {
   );
 }
 
+function parseRetryAfterMs(headerValue: string | null): number | undefined {
+  if (!headerValue) return undefined;
+
+  const seconds = Number(headerValue);
+  if (Number.isFinite(seconds) && seconds >= 0) {
+    return seconds * 1000;
+  }
+
+  const retryDateMs = Date.parse(headerValue);
+  if (Number.isFinite(retryDateMs)) {
+    return Math.max(0, retryDateMs - Date.now());
+  }
+
+  return undefined;
+}
+
 async function httpRequest(url: string, options: HttpRequestOptions = {}): Promise<Response> {
   const {
     method = 'GET',
@@ -57,9 +73,8 @@ async function httpRequest(url: string, options: HttpRequestOptions = {}): Promi
         return response;
       }
 
-      const retryAfterRaw = response.headers.get('retry-after');
-      const retryAfterMs = retryAfterRaw ? Number(retryAfterRaw) * 1000 : undefined;
-      const backoffMs = retryAfterMs && Number.isFinite(retryAfterMs)
+      const retryAfterMs = parseRetryAfterMs(response.headers.get('retry-after'));
+      const backoffMs = retryAfterMs !== undefined
         ? retryAfterMs
         : initialRetryDelayMs * (2 ** attempt);
 
