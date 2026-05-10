@@ -260,6 +260,13 @@ interface NarrationUnit {
   durationSecs?: number;
 }
 
+function splitUnitDurationSecs(totalDurationSecs: number, pieceWordCount: number, totalPieceWords: number, pieceCount: number): number {
+  const weight = totalPieceWords > 0
+    ? pieceWordCount / totalPieceWords
+    : 1 / pieceCount;
+  return Number((totalDurationSecs * weight).toFixed(3));
+}
+
 function ensureMinimumUnitCount(units: NarrationUnit[], minimumCount: number): NarrationUnit[] {
   const expanded = [...units];
 
@@ -290,13 +297,7 @@ function ensureMinimumUnitCount(units: NarrationUnit[], minimumCount: number): N
         text,
         promptText: unitToSplit.promptText,
         durationSecs: unitToSplit.durationSecs !== undefined
-          ? Number((
-            unitToSplit.durationSecs * (
-              totalPieceWords > 0
-                ? pieceWordCounts[index] / totalPieceWords
-                : 1 / pieces.length
-            )
-          ).toFixed(3))
+          ? splitUnitDurationSecs(unitToSplit.durationSecs, pieceWordCounts[index], totalPieceWords, pieces.length)
           : undefined,
       }))
     );
