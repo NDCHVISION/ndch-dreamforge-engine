@@ -194,11 +194,16 @@ function stitchVideoClips(clipPaths: string[]): string {
 
   const listFile = clipPaths.map(path => {
     const resolvedPath = resolve(path);
-    if (/[\r\n]/.test(resolvedPath) || !resolvedPath.startsWith(resolvedTmpPrefix) || !resolvedPath.endsWith('.mp4')) {
+    const safePathPattern = /^[A-Za-z0-9._/:-]+$/;
+    if (
+      /[\r\n]/.test(resolvedPath) ||
+      !resolvedPath.startsWith(resolvedTmpPrefix) ||
+      !resolvedPath.endsWith('.mp4') ||
+      !safePathPattern.test(resolvedPath)
+    ) {
       throw new Error(`Unsafe clip path for ffmpeg concat list: ${path}`);
     }
-    const escapedPath = resolvedPath.replace(/\\/g, '\\\\').replace(/'/g, `'\\''`);
-    return `file '${escapedPath}'`;
+    return `file '${resolvedPath}'`;
   }).join('\n');
 
   writeFileSync(listPath, `${listFile}\n`);
