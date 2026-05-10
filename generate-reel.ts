@@ -63,6 +63,8 @@ const MUSIC_ASSET_RELATIVE_PATH  = 'assets/ambient-drone.mp3';
 const DEFAULT_HTTP_TIMEOUT_MS    = 45_000;
 const MANAGED_RELEASE_TAG        = 'reel-latest';
 const MANAGED_RELEASE_NAME       = 'NDCH Dreamforge Latest Reel';
+const MIN_RUNWAY_CONCURRENCY     = 1;
+const MAX_RUNWAY_CONCURRENCY     = 4;
 
 const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
 let runtimeConfig: RuntimeConfig | undefined;
@@ -792,7 +794,7 @@ function parsePositiveIntEnv(name: string, fallback: number): number {
 
 async function generateRunwayClipsBounded(scenePlan: ReelScenePlan[]): Promise<string[]> {
   const requestedConcurrency = parsePositiveIntEnv('REEL_RUNWAY_CONCURRENCY', 2);
-  const concurrency = Math.max(1, Math.min(4, requestedConcurrency));
+  const concurrency = Math.max(MIN_RUNWAY_CONCURRENCY, Math.min(MAX_RUNWAY_CONCURRENCY, requestedConcurrency));
   const clipPaths = new Array<string>(scenePlan.length);
   let nextIndex = 0;
 
@@ -1014,7 +1016,10 @@ interface SubtitleCue {
 }
 
 function formatSrtTimestamp(seconds: number): string {
-  const totalMillis = Math.max(0, Math.round(seconds * 1000));
+  if (seconds < 0) {
+    throw new Error(`Subtitle timestamp cannot be negative: ${seconds}`);
+  }
+  const totalMillis = Math.round(seconds * 1000);
   const hrs = Math.floor(totalMillis / 3_600_000);
   const mins = Math.floor((totalMillis % 3_600_000) / 60_000);
   const secs = Math.floor((totalMillis % 60_000) / 1000);

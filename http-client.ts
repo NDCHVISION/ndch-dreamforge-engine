@@ -23,7 +23,6 @@ function isRetryableError(error: unknown): boolean {
     message.includes('fetch failed') ||
     message.includes('network') ||
     message.includes('timeout') ||
-    message.includes('ecconnreset') ||
     message.includes('econnreset') ||
     message.includes('etimedout')
   );

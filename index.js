@@ -61,7 +61,7 @@ async function loadEngineConfig() {
     }
 
     const durationDefault = Number(engine?.virality_data?.duration_strategy?.engine_default_seconds);
-    if (Number.isFinite(durationDefault) && durationDefault > 0) {
+    if (Number.isInteger(durationDefault) && durationDefault > 0) {
       if (!DURATION_NOTES[durationDefault]) {
         DURATION_NOTES[durationDefault] = `${durationDefault}s — engine default duration.`;
       }
@@ -266,7 +266,7 @@ function generateReel() {
 
     currentReel = {
       reel_id: `reel_${Date.now()}`,
-      created: new Date().toISOString().split('T')[0],
+      createdDate: new Date().toISOString().split('T')[0],
       concept,
       style_id: selectedStyle,
       style_name: style.name,

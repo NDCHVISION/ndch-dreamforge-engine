@@ -19,27 +19,41 @@ function toNumber(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function getPath(root: unknown, path: string[]): unknown {
+  let current: unknown = root;
+  for (const key of path) {
+    if (!isRecord(current)) return undefined;
+    current = current[key];
+  }
+  return current;
+}
+
 function loadEngineDefaults(): EngineDefaults {
   const configPath = resolve('engine/viral-reel-engine.json');
   try {
-    const parsed = JSON.parse(readFileSync(configPath, 'utf8')) as Record<string, any>;
-    const engine = parsed?.engine ?? {};
-    const voiceover = engine?.production_stack?.voiceover ?? {};
-    const duration = engine?.virality_data?.duration_strategy ?? {};
+    const parsed = JSON.parse(readFileSync(configPath, 'utf8')) as unknown;
+    const defaultVoiceIdValue = getPath(parsed, ['engine', 'production_stack', 'voiceover', 'default_voice_id']);
+    const recommendedModelsValue = getPath(parsed, ['engine', 'production_stack', 'voiceover', 'recommended_models']);
+    const defaultDurationValue = getPath(parsed, ['engine', 'virality_data', 'duration_strategy', 'engine_default_seconds']);
+    const maxDurationValue = getPath(parsed, ['engine', 'virality_data', 'duration_strategy', 'maximum_seconds']);
 
-    const defaultVoiceId = typeof voiceover.default_voice_id === 'string'
-      ? voiceover.default_voice_id
+    const defaultVoiceId = typeof defaultVoiceIdValue === 'string'
+      ? defaultVoiceIdValue
       : FALLBACKS.defaultVoiceId;
-    const recommendedModels = Array.isArray(voiceover.recommended_models)
-      ? voiceover.recommended_models.filter((item: unknown): item is string => typeof item === 'string')
+    const recommendedModels = Array.isArray(recommendedModelsValue)
+      ? recommendedModelsValue.filter((item: unknown): item is string => typeof item === 'string')
       : [];
     const defaultModelId = recommendedModels[0] ?? FALLBACKS.defaultModelId;
 
     return {
       defaultVoiceId,
       defaultModelId,
-      defaultDurationSeconds: toNumber(duration.engine_default_seconds) ?? FALLBACKS.defaultDurationSeconds,
-      maxDurationSeconds: toNumber(duration.maximum_seconds) ?? FALLBACKS.maxDurationSeconds,
+      defaultDurationSeconds: toNumber(defaultDurationValue) ?? FALLBACKS.defaultDurationSeconds,
+      maxDurationSeconds: toNumber(maxDurationValue) ?? FALLBACKS.maxDurationSeconds,
     };
   } catch {
     return FALLBACKS;

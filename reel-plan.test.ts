@@ -315,7 +315,7 @@ test('buildSceneTimeline produces empty coveredSegments when no explicit segment
   }
 });
 
-test('planClipDurations clamps long requests and composes with 10s clips and a final remainder clip', () => {
+test('planClipDurations clamps long requests to configured max duration', () => {
   const durations = planClipDurations(220, 220);
   const total = durations.reduce((sum, value) => sum + value, 0);
 

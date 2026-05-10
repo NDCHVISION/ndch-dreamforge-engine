@@ -54,9 +54,9 @@ interface PublisherConfig {
 let publisherConfig: PublisherConfig | undefined;
 
 function requireEnv(env: NodeJS.ProcessEnv, name: string): string {
-  const value = env[name]?.trim();
-  if (!value) throw new Error(`Missing required env var: ${name}`);
-  return value;
+  const rawValue = env[name];
+  if (!rawValue?.trim()) throw new Error(`Missing required env var: ${name}`);
+  return rawValue.trim();
 }
 
 function loadPublisherConfig(env: NodeJS.ProcessEnv = process.env): PublisherConfig {
