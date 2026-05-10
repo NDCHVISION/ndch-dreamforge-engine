@@ -4,13 +4,19 @@ on:
   workflow_dispatch:
     inputs:
       script:
-        description: 'Voiceover script — spoken in your ElevenLabs voice'
-        required: true
+        description: 'Voiceover script fallback when REEL_SPEC_PATH is not provided'
+        required: false
       video_prompt:
-        description: 'Base visual prompt/style anchor for Runway Gen-4; narration segments add scene-specific details'
-        required: true
+        description: 'Visual prompt fallback when JSON inputs do not resolve one'
+        required: false
+      engine_config_path:
+        description: 'Optional path to global engine config JSON in the repo'
+        required: false
+      reel_spec_path:
+        description: 'Optional path to per-reel spec JSON in the repo'
+        required: false
       caption:
-        description: 'Instagram caption (max 2200 chars, include hashtags)'
+        description: 'Instagram caption fallback (max 2200 chars, include hashtags)'
         required: false
 
 jobs:
@@ -37,8 +43,11 @@ jobs:
           ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
           RUNWAY_API_KEY:     ${{ secrets.RUNWAY_API_KEY }}
           GITHUB_TOKEN:       ${{ secrets.GITHUB_TOKEN }}
+          ENGINE_CONFIG_PATH: ${{ inputs.engine_config_path }}
+          REEL_SPEC_PATH:     ${{ inputs.reel_spec_path }}
           REEL_SCRIPT:        ${{ inputs.script }}
           REEL_PROMPT:        ${{ inputs.video_prompt }}
+          REEL_CAPTION:       ${{ inputs.caption }}
         run: npx tsx generate-reel.ts
 
       - name: Publish to Instagram
@@ -49,5 +58,5 @@ jobs:
           META_APP_SECRET:        ${{ secrets.META_APP_SECRET }}
           FB_PAGE_ID:             "782632291594234"
           REEL_VIDEO_URL:         ${{ env.REEL_VIDEO_URL }}
-          REEL_CAPTION:           ${{ inputs.caption }}
+          REEL_CAPTION:           ${{ env.REEL_CAPTION || inputs.caption }}
         run: npx tsx publish-reel.ts

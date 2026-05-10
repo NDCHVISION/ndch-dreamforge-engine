@@ -269,10 +269,30 @@ export async function publishReel(opts: ReelOptions): Promise<string> {
 
 const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
 
+function optionalBooleanEnv(name: string): boolean | undefined {
+  const value = process.env[name];
+  if (value === undefined) return undefined;
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  throw new Error(`Invalid boolean env var ${name}: ${value}`);
+}
+
+function optionalNumberEnv(name: string): number | undefined {
+  const value = process.env[name];
+  if (value === undefined || value.trim() === '') return undefined;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    throw new Error(`Invalid numeric env var ${name}: ${value}`);
+  }
+  return parsed;
+}
+
 // ── CLI entrypoint ────────────────────────────────────────────────────────────
 
 const videoUrl = process.env.REEL_VIDEO_URL;
 const caption  = process.env.REEL_CAPTION;
+const thumbOffset = optionalNumberEnv('REEL_THUMB_OFFSET_MS');
+const shareToFeed = optionalBooleanEnv('REEL_SHARE_TO_FEED') ?? true;
 
 if (!videoUrl) {
   console.error('✗  Missing REEL_VIDEO_URL');
@@ -285,7 +305,7 @@ console.log(`  fb page    : ${FB_PAGE_ID}`);
 console.log(`  video      : ${videoUrl}`);
 console.log('');
 
-publishReel({ videoUrl, caption, shareToFeed: true })
+publishReel({ videoUrl, caption, shareToFeed, thumbOffset })
   .then(mediaId => {
     console.log('');
     console.log(`✓  Reel live — media id: ${mediaId}`);
