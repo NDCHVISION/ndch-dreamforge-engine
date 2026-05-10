@@ -386,9 +386,11 @@ export function buildSegmentPrompt(
   totalClips: number,
   promptOverride?: string
 ): string {
-  const promptAnchor = normalizeWhitespace(basePrompt).replace(/[.?!,;:\s]+$/, '');
+  // Runway promptText hard limit is 1000 chars. Reserve ~200 for the scene-specific suffix.
+  const promptAnchor = normalizeWhitespace(basePrompt).replace(/[.?!,;:\s]+$/, '').slice(0, 800);
   const sceneFocus = limitWords(promptOverride ?? narrationChunk, 24);
-  return `${promptAnchor}. ${sceneCue(clipIndex, totalClips)}. Keep the same visual style and evolve the imagery to match: ${sceneFocus}`;
+  const assembled = `${promptAnchor}. ${sceneCue(clipIndex, totalClips)}. Keep the same visual style and evolve the imagery to match: ${sceneFocus}`;
+  return assembled.slice(0, 1000);
 }
 
 export function planClipDurations(audioDurationSecs: number, targetDurationSecs = audioDurationSecs): Array<5 | 10> {
@@ -975,8 +977,4 @@ async function main(): Promise<void> {
 
 if (process.argv[1] && resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url))) {
   main().catch(err => {
-    console.error('');
-    console.error('✗  Reel generation failed:', err instanceof Error ? err.message : String(err));
-    process.exit(1);
-  });
-}
+    
