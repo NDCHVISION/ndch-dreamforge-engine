@@ -10,20 +10,38 @@ Generate and publish motivational Instagram reels via:
 
 ## Local prerequisites
 
-- Node.js 18+
+- Node.js 20+
 - `ffmpeg` and `ffprobe` on PATH
+
+## Install
+
+```bash
+npm ci
+cp .env.example .env
+```
+
+Populate `.env` with the generation/publishing secrets and release settings you need for your run.
 
 ## Commands
 
 ```bash
+# Type-check the TypeScript scripts
+npm run typecheck
+
+# Lint the project
+npm run lint
+
 # Run unit tests
-npx --yes tsx --test reel-plan.test.ts
+npm test
+
+# Format files
+npm run format
 
 # Generate reel assets (writes REEL_VIDEO_URL to GITHUB_ENV when present)
-npx --yes tsx generate-reel.ts
+npm run generate
 
 # Publish to Instagram using generated REEL_VIDEO_URL
-npx --yes tsx publish-reel.ts
+npm run publish
 ```
 
 ## Required env vars
@@ -33,6 +51,7 @@ npx --yes tsx publish-reel.ts
 - `ELEVENLABS_API_KEY`
 - `RUNWAY_API_KEY`
 - `GITHUB_TOKEN`
+- `GITHUB_REPOSITORY` (or `REEL_RELEASE_REPO`)
 - Input fallback: `REEL_SCRIPT`, `REEL_PROMPT` (or JSON via `ENGINE_CONFIG_PATH`, `REEL_SPEC_PATH`)
 
 ### Publish (`publish-reel.ts`)
@@ -46,8 +65,12 @@ npx --yes tsx publish-reel.ts
 
 ## Optional env vars
 
+- `REEL_RELEASE_TAG`
+- `REEL_RELEASE_NAME`
 - `REEL_CAPTION`
 - `REEL_MUSIC_PATH`
 - `REEL_THUMB_OFFSET_MS`
 - `REEL_SHARE_TO_FEED`
 - `REEL_RUNWAY_CONCURRENCY` (1-4)
+
+Use `.env.example` as the reference for the supported generation, release, and publish configuration.

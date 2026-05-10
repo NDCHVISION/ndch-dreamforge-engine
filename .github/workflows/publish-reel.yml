@@ -31,15 +31,16 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: '20'
+          cache: npm
 
-      - name: Install tools
+      - name: Install dependencies and tools
         run: |
-          npm install -g tsx
+          npm ci
           sudo apt-get install -y ffmpeg
 
       - name: Run reel planning tests
-        run: npx --yes tsx --test reel-plan.test.ts
+        run: npm test
 
       - name: Generate voiceover + video
         env:
@@ -51,7 +52,7 @@ jobs:
           REEL_SCRIPT:        ${{ inputs.script }}
           REEL_PROMPT:        ${{ inputs.video_prompt }}
           REEL_CAPTION:       ${{ inputs.caption }}
-        run: npx tsx generate-reel.ts
+        run: npm run generate
 
       - name: Surface resolved production plan
         if: ${{ env.REEL_RESOLVED_PLAN_PATH != '' }}
@@ -79,4 +80,4 @@ jobs:
           FB_PAGE_ID:             "782632291594234"
           REEL_VIDEO_URL:         ${{ env.REEL_VIDEO_URL }}
           REEL_CAPTION:           ${{ env.REEL_CAPTION || inputs.caption }}
-        run: npx tsx publish-reel.ts
+        run: npm run publish

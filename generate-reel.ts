@@ -27,35 +27,20 @@
  * Node ≥ 18 + ffmpeg on PATH required.
  */
 
-import { writeFileSync, readFileSync, existsSync, appendFileSync } from 'node:fs';
+import { writeFileSync, readFileSync, existsSync, appendFileSync, copyFileSync } from 'node:fs';
 import { execSync }                                                 from 'node:child_process';
 import { randomUUID }                                               from 'node:crypto';
 import { tmpdir }                                                   from 'node:os';
 import { join, resolve }                                            from 'node:path';
 import { fileURLToPath }                                            from 'node:url';
-import { resolveProductionPlan, type ResolvedNarrationSegment, type ResolvedProductionPlan } from './reel-plan.ts';
+import { type ResolvedNarrationSegment, type ResolvedProductionPlan } from './reel-plan.ts';
 import { requestBuffer, requestJson, requestText } from './http-client.ts';
 import { ENGINE_DEFAULTS } from './engine-defaults.ts';
-
-// ── Env ───────────────────────────────────────────────────────────────────────
-
-function requireEnv(name: string): string {
-  const v = process.env[name];
-  if (!v) { console.error(`✗  Missing env var: ${name}`); process.exit(1); }
-  return v;
-}
-
-interface RuntimeConfig {
-  elevenLabsKey: string;
-  runwayKey: string;
-  githubToken: string;
-  plan: ResolvedProductionPlan;
-}
+import { loadGenerateRuntimeConfig, type GenerateRuntimeConfig } from './config/env.ts';
 
 const DEFAULT_VOICE_ID           = ENGINE_DEFAULTS.defaultVoiceId;
 const DEFAULT_ELEVENLABS_MODEL   = ENGINE_DEFAULTS.defaultModelId;
 const DEFAULT_OUTPUT_FORMAT      = 'mp3_44100_192';
-const REPO                       = 'NDCHVISION/ndch-dreamforge-engine';
 const TMP                        = tmpdir();
 const MAX_REEL_SECS              = ENGINE_DEFAULTS.maxDurationSeconds;
 const RUNWAY_TIMEOUT_MS          = 300_000;
@@ -63,22 +48,18 @@ const MUSIC_ASSET_RELATIVE_PATH  = 'assets/ambient-drone.mp3';
 const DEFAULT_HTTP_TIMEOUT_MS    = 45_000;
 const MANAGED_RELEASE_TAG        = 'reel-latest';
 const MANAGED_RELEASE_NAME       = 'NDCH Dreamforge Latest Reel';
-const MIN_RUNWAY_CONCURRENCY     = 1;
-const MAX_RUNWAY_CONCURRENCY     = 4;
 
 const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
-let runtimeConfig: RuntimeConfig | undefined;
+let runtimeConfig: GenerateRuntimeConfig | undefined;
 
-function getConfig(): RuntimeConfig {
-  runtimeConfig ??= {
-    elevenLabsKey: requireEnv('ELEVENLABS_API_KEY'),
-    runwayKey: requireEnv('RUNWAY_API_KEY'),
-    githubToken: requireEnv('GITHUB_TOKEN'),
-    plan: resolveProductionPlan(process.env, {
+function getConfig(): GenerateRuntimeConfig {
+  runtimeConfig ??= loadGenerateRuntimeConfig(process.env, {
       defaultVoiceId: DEFAULT_VOICE_ID,
       defaultModelId: DEFAULT_ELEVENLABS_MODEL,
-    }),
-  };
+      releaseTag: MANAGED_RELEASE_TAG,
+      releaseName: MANAGED_RELEASE_NAME,
+      runwayConcurrency: 2,
+    });
   return runtimeConfig;
 }
 
@@ -186,11 +167,11 @@ function processAudio(inputPath: string): string {
  *   • Music loops indefinitely to cover any narration length
  */
 function mixMusicUnderVoice(voicePath: string, audioDurationSecs: number): string {
-  const musicEnvPath = process.env.REEL_MUSIC_PATH;
+  const { musicPath: musicEnvPath } = getConfig();
   const musicAssetPath = join(resolve('.'), MUSIC_ASSET_RELATIVE_PATH);
 
   let musicPath: string | null = null;
-  if (musicEnvPath && existsSync(musicEnvPath)) {
+  if (musicEnvPath) {
     musicPath = musicEnvPath;
   } else if (existsSync(musicAssetPath)) {
     musicPath = musicAssetPath;
@@ -288,7 +269,7 @@ async function generateVoiceover(): Promise<string> {
 
   // Normalise to the canonical output filename the rest of the pipeline expects.
   const audioPath = join(TMP, 'voiceover.mp3');
-  execSync(`cp "${finalAudioSource}" "${audioPath}"`);
+  copyFileSync(finalAudioSource, audioPath);
 
   const finalDuration = getMediaDuration(audioPath);
   console.log(`         final : ${audioPath}  (${finalDuration.toFixed(1)}s)`);
@@ -303,7 +284,7 @@ function normalizeWhitespace(text: string): string {
 }
 
 function countWords(text: string): number {
-  const matches = normalizeWhitespace(text).match(/\b[\p{L}\p{N}''/\-]+\b/gu);
+  const matches = normalizeWhitespace(text).match(/\b[\p{L}\p{N}''/-]+\b/gu);
   return matches?.length ?? 0;
 }
 
@@ -782,19 +763,8 @@ function stitchVideoClips(clipPaths: string[]): string {
   return stitchedPath;
 }
 
-function parsePositiveIntEnv(name: string, fallback: number): number {
-  const raw = process.env[name];
-  if (!raw) return fallback;
-  const value = Number(raw);
-  if (!Number.isInteger(value) || value <= 0) {
-    throw new Error(`Invalid positive integer env var ${name}: ${raw}`);
-  }
-  return value;
-}
-
 async function generateRunwayClipsBounded(scenePlan: ReelScenePlan[]): Promise<string[]> {
-  const requestedConcurrency = parsePositiveIntEnv('REEL_RUNWAY_CONCURRENCY', 2);
-  const concurrency = Math.max(MIN_RUNWAY_CONCURRENCY, Math.min(MAX_RUNWAY_CONCURRENCY, requestedConcurrency));
+  const { runwayConcurrency: concurrency } = getConfig();
   const clipPaths = new Array<string>(scenePlan.length);
   let nextIndex = 0;
 
@@ -919,6 +889,7 @@ function githubHeaders(token: string): Record<string, string> {
 async function uploadReleaseAsset(
   release: GitHubRelease,
   token: string,
+  repo: string,
   assetName: string,
   contentType: string,
   content: Buffer
@@ -926,7 +897,7 @@ async function uploadReleaseAsset(
   const existing = release.assets.find(asset => asset.name === assetName);
   if (existing) {
     await requestText(
-      `https://api.github.com/repos/${REPO}/releases/assets/${existing.id}`,
+      `https://api.github.com/repos/${repo}/releases/assets/${existing.id}`,
       {
         method: 'DELETE',
         headers: githubHeaders(token),
@@ -944,16 +915,21 @@ async function uploadReleaseAsset(
       'Content-Type': contentType,
       'Accept': 'application/vnd.github.v3+json',
     },
-    body: content,
+    body: new Uint8Array(content),
     timeoutMs: DEFAULT_HTTP_TIMEOUT_MS,
     maxRetries: 3,
   });
   return uploaded.browser_download_url;
 }
 
-async function getOrCreateManagedRelease(token: string): Promise<GitHubRelease> {
+async function getOrCreateManagedRelease(
+  token: string,
+  repo: string,
+  releaseTag: string,
+  releaseName: string
+): Promise<GitHubRelease> {
   const releases = await requestJson<Array<GitHubRelease & { tag_name: string }>>(
-    `https://api.github.com/repos/${REPO}/releases?per_page=30`,
+    `https://api.github.com/repos/${repo}/releases?per_page=30`,
     {
       headers: githubHeaders(token),
       timeoutMs: DEFAULT_HTTP_TIMEOUT_MS,
@@ -961,15 +937,15 @@ async function getOrCreateManagedRelease(token: string): Promise<GitHubRelease> 
     }
   );
 
-  const existing = releases.find(release => release.tag_name === MANAGED_RELEASE_TAG);
+  const existing = releases.find(release => release.tag_name === releaseTag);
   if (existing) return existing;
 
-  return requestJson<GitHubRelease>(`https://api.github.com/repos/${REPO}/releases`, {
+  return requestJson<GitHubRelease>(`https://api.github.com/repos/${repo}/releases`, {
     method: 'POST',
     headers: githubHeaders(token),
     body: JSON.stringify({
-      tag_name: MANAGED_RELEASE_TAG,
-      name: MANAGED_RELEASE_NAME,
+      tag_name: releaseTag,
+      name: releaseName,
       body: 'Managed prerelease for latest NDCH Dreamforge artifacts',
       draft: false,
       prerelease: true,
@@ -981,13 +957,14 @@ async function getOrCreateManagedRelease(token: string): Promise<GitHubRelease> 
 
 async function uploadToGitHubRelease(videoPath: string, subtitlePath?: string): Promise<{ videoUrl: string; subtitleUrl?: string }> {
   console.log('  [4/4] Uploading to GitHub Release…');
-  const { githubToken } = getConfig();
+  const { githubToken, releaseRepo, releaseTag, releaseName } = getConfig();
 
-  const release = await getOrCreateManagedRelease(githubToken);
+  const release = await getOrCreateManagedRelease(githubToken, releaseRepo, releaseTag, releaseName);
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   const videoUrl = await uploadReleaseAsset(
     release,
     githubToken,
+    releaseRepo,
     `reel-${timestamp}.mp4`,
     'video/mp4',
     readFileSync(videoPath)
@@ -998,6 +975,7 @@ async function uploadToGitHubRelease(videoPath: string, subtitlePath?: string): 
     subtitleUrl = await uploadReleaseAsset(
       release,
       githubToken,
+      releaseRepo,
       `reel-${timestamp}.srt`,
       'application/x-subrip',
       readFileSync(subtitlePath)
@@ -1079,10 +1057,15 @@ function writeSubtitleSidecar(plan: ResolvedProductionPlan, sceneTimeline: Scene
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
-  const { plan } = getConfig();
+  const { plan, releaseRepo, releaseTag, releaseName, runwayConcurrency, musicPath } = getConfig();
   console.log('NDCH Vision — Reel Generator');
   console.log(`  engine config : ${plan.engineConfigPath ?? '(env only)'}`);
   console.log(`  reel spec     : ${plan.reelSpecPath ?? '(env only)'}`);
+  console.log(`  release repo  : ${releaseRepo}`);
+  console.log(`  release tag   : ${releaseTag}`);
+  console.log(`  release name  : ${releaseName}`);
+  console.log(`  runway conc.  : ${runwayConcurrency}`);
+  console.log(`  music path    : ${musicPath ?? '(auto-detect asset or skip)'}`);
   console.log(`  voice         : ${plan.elevenLabs.voiceId ?? DEFAULT_VOICE_ID}`);
   console.log(`  model         : ${plan.elevenLabs.modelId}`);
   console.log(`  style         : ${plan.selectedStyleId ?? '(none)'}`);
