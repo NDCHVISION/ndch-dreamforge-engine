@@ -7,8 +7,13 @@
  *   ELEVENLABS_API_KEY   Your ElevenLabs API key
  *   RUNWAY_API_KEY       Your Runway ML API key
  *   GITHUB_TOKEN         Auto-injected in Actions (needs contents:write)
- *   REEL_SCRIPT          Voiceover text (spoken in your cloned voice)
- *   REEL_PROMPT          Visual prompt for Runway Gen-4
+ *   REEL_SCRIPT          Voiceover text fallback when REEL_SPEC_PATH is absent
+ *   REEL_PROMPT          Visual prompt fallback when JSON inputs do not resolve one
+ *
+ * Optional JSON inputs
+ * ────────────────────
+ *   ENGINE_CONFIG_PATH  Global engine config JSON with styles/defaults
+ *   REEL_SPEC_PATH      Per-reel production brief/spec JSON
  *
  * Writes REEL_VIDEO_URL to $GITHUB_ENV so publish-reel.ts picks it up.
  *
@@ -21,6 +26,7 @@ import { randomUUID }                                  from 'node:crypto';
 import { tmpdir }                                      from 'node:os';
 import { join, resolve }                               from 'node:path';
 import { fileURLToPath }                               from 'node:url';
+import { resolveProductionPlan, type ResolvedNarrationSegment, type ResolvedProductionPlan } from './reel-plan.ts';
 
 // ── Env ───────────────────────────────────────────────────────────────────────
 
@@ -34,11 +40,11 @@ interface RuntimeConfig {
   elevenLabsKey: string;
   runwayKey: string;
   githubToken: string;
-  script: string;
-  prompt: string;
+  plan: ResolvedProductionPlan;
 }
 
-const VOICE_ID       = 'C9Uh5MFptuXa176UlaXE';   // NDCH Vision cloned voice
+const DEFAULT_VOICE_ID = 'C9Uh5MFptuXa176UlaXE';   // NDCH Vision cloned voice
+const DEFAULT_ELEVENLABS_MODEL = 'eleven_multilingual_v2';
 const REPO           = 'NDCHVISION/ndch-dreamforge-engine';
 const TMP            = tmpdir();
 const MAX_REEL_SECS  = 45;
@@ -52,8 +58,10 @@ function getConfig(): RuntimeConfig {
     elevenLabsKey: requireEnv('ELEVENLABS_API_KEY'),
     runwayKey: requireEnv('RUNWAY_API_KEY'),
     githubToken: requireEnv('GITHUB_TOKEN'),
-    script: requireEnv('REEL_SCRIPT'),
-    prompt: requireEnv('REEL_PROMPT'),
+    plan: resolveProductionPlan(process.env, {
+      defaultVoiceId: DEFAULT_VOICE_ID,
+      defaultModelId: DEFAULT_ELEVENLABS_MODEL,
+    }),
   };
   return runtimeConfig;
 }
@@ -86,10 +94,13 @@ function getMediaDuration(path: string): number {
 
 async function generateVoiceover(): Promise<string> {
   console.log('  [1/4] Generating voiceover via ElevenLabs…');
-  const { elevenLabsKey, script } = getConfig();
+  const { elevenLabsKey, plan } = getConfig();
+  const voiceId = plan.elevenLabs.voiceId ?? DEFAULT_VOICE_ID;
+  console.log(`         model: ${plan.elevenLabs.modelId}`);
+  console.log(`         voice: ${voiceId}`);
 
   const res = await fetch(
-    `https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}`,
+    `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
     {
       method:  'POST',
       headers: {
@@ -98,9 +109,9 @@ async function generateVoiceover(): Promise<string> {
         'Accept':       'audio/mpeg',
       },
       body: JSON.stringify({
-        text:     script,
-        model_id: 'eleven_multilingual_v2',
-        voice_settings: { stability: 0.5, similarity_boost: 0.75 },
+        text: plan.script,
+        model_id: plan.elevenLabs.modelId,
+        ...(plan.elevenLabs.voiceSettings ? { voice_settings: plan.elevenLabs.voiceSettings } : {}),
       }),
     }
   );
@@ -193,32 +204,6 @@ function splitNarrationUnits(script: string): string[] {
   }));
 }
 
-function ensureMinimumUnitCount(units: string[], minimumCount: number): string[] {
-  const expanded = [...units];
-
-  while (expanded.length < minimumCount) {
-    let splitIndex = -1;
-    let longestWordCount = 0;
-
-    for (let i = 0; i < expanded.length; i++) {
-      const wordCount = countWords(expanded[i]);
-      if (wordCount > longestWordCount && wordCount > 1) {
-        longestWordCount = wordCount;
-        splitIndex = i;
-      }
-    }
-
-    if (splitIndex === -1) break;
-
-    const pieces = splitWordsIntoChunks(expanded[splitIndex], 2);
-    if (pieces.length < 2) break;
-
-    expanded.splice(splitIndex, 1, ...pieces);
-  }
-
-  return expanded;
-}
-
 function limitWords(text: string, maxWords: number): string {
   const words = normalizeWhitespace(text).split(' ').filter(Boolean);
   if (words.length <= maxWords) return words.join(' ');
@@ -232,16 +217,23 @@ function sceneCue(index: number, totalScenes: number): string {
   return `Scene ${index + 1} of ${totalScenes}`;
 }
 
-export function buildSegmentPrompt(basePrompt: string, narrationChunk: string, clipIndex: number, totalClips: number): string {
+export function buildSegmentPrompt(
+  basePrompt: string,
+  narrationChunk: string,
+  clipIndex: number,
+  totalClips: number,
+  promptOverride?: string
+): string {
   const promptAnchor = normalizeWhitespace(basePrompt).replace(/[.?!,;:\s]+$/, '');
-  const sceneFocus = limitWords(narrationChunk, 24);
+  const sceneFocus = limitWords(promptOverride ?? narrationChunk, 24);
   return `${promptAnchor}. ${sceneCue(clipIndex, totalClips)}. Keep the same visual style and evolve the imagery to match: ${sceneFocus}`;
 }
 
-export function planClipDurations(audioDurationSecs: number): Array<5 | 10> {
-  const target = Math.max(5, Math.min(MAX_REEL_SECS, Math.ceil(audioDurationSecs)));
+export function planClipDurations(audioDurationSecs: number, targetDurationSecs = audioDurationSecs): Array<5 | 10> {
+  const requestedDuration = Math.max(audioDurationSecs, targetDurationSecs);
+  const clampedTargetDuration = Math.max(5, Math.min(MAX_REEL_SECS, Math.ceil(requestedDuration)));
   const durations: Array<5 | 10> = [];
-  let remaining = target;
+  let remaining = clampedTargetDuration;
 
   while (remaining > 0) {
     if (remaining > 10) {
@@ -257,8 +249,54 @@ export function planClipDurations(audioDurationSecs: number): Array<5 | 10> {
   return durations;
 }
 
-export function planNarrationScenes(script: string, basePrompt: string, audioDurationSecs: number): ReelScenePlan[] {
-  const clipDurations = planClipDurations(audioDurationSecs);
+interface ScenePlanningOptions {
+  targetDurationSecs?: number;
+  narrationSegments?: ResolvedNarrationSegment[];
+}
+
+interface NarrationUnit {
+  text: string;
+  promptText?: string;
+}
+
+function ensureMinimumUnitCount(units: NarrationUnit[], minimumCount: number): NarrationUnit[] {
+  const expanded = [...units];
+
+  while (expanded.length < minimumCount) {
+    let splitIndex = -1;
+    let longestWordCount = 0;
+
+    for (let i = 0; i < expanded.length; i++) {
+      const wordCount = countWords(expanded[i].text);
+      if (wordCount > longestWordCount && wordCount > 1) {
+        longestWordCount = wordCount;
+        splitIndex = i;
+      }
+    }
+
+    if (splitIndex === -1) break;
+
+    const unitToSplit = expanded[splitIndex];
+    const pieces = splitWordsIntoChunks(unitToSplit.text, 2);
+    if (pieces.length < 2) break;
+
+    expanded.splice(
+      splitIndex,
+      1,
+      ...pieces.map(text => ({ text, promptText: unitToSplit.promptText }))
+    );
+  }
+
+  return expanded;
+}
+
+export function planNarrationScenes(
+  script: string,
+  basePrompt: string,
+  audioDurationSecs: number,
+  options: ScenePlanningOptions = {}
+): ReelScenePlan[] {
+  const clipDurations = planClipDurations(audioDurationSecs, options.targetDurationSecs);
   const normalizedScript = normalizeWhitespace(script);
 
   if (!normalizedScript) throw new Error('Narration script must contain non-whitespace content');
@@ -266,7 +304,16 @@ export function planNarrationScenes(script: string, basePrompt: string, audioDur
   const totalWords = countWords(normalizedScript);
   const secondsPerWord = totalWords > 0 ? audioDurationSecs / totalWords : 0;
   const totalClips = clipDurations.length;
-  const units = ensureMinimumUnitCount(splitNarrationUnits(normalizedScript), totalClips);
+  const explicitUnits = options.narrationSegments
+    ?.map(segment => ({
+      text: normalizeWhitespace(segment.text),
+      promptText: segment.promptText ? normalizeWhitespace(segment.promptText) : undefined,
+    }))
+    .filter(segment => segment.text);
+  const seededUnits = explicitUnits && explicitUnits.length > 0
+    ? explicitUnits
+    : splitNarrationUnits(normalizedScript).map(text => ({ text }));
+  const units = ensureMinimumUnitCount(seededUnits, totalClips);
   const segments: ReelScenePlan[] = [];
   let unitIndex = 0;
 
@@ -274,12 +321,12 @@ export function planNarrationScenes(script: string, basePrompt: string, audioDur
     const clipDuration = clipDurations[clipIndex];
     const targetNarrationSecs = clipDuration;
     const minimumNarrationSecs = Math.max(2.5, clipDuration * 0.6);
-    const segmentUnits: string[] = [];
+    const segmentUnits: NarrationUnit[] = [];
     let segmentWordCount = 0;
 
     while (unitIndex < units.length) {
       const unit = units[unitIndex];
-      const unitWordCount = countWords(unit);
+      const unitWordCount = countWords(unit.text);
       const projectedWordCount = segmentWordCount + unitWordCount;
       const currentNarrationSecs = segmentWordCount * secondsPerWord;
       const projectedSecs = projectedWordCount * secondsPerWord;
@@ -319,17 +366,29 @@ export function planNarrationScenes(script: string, basePrompt: string, audioDur
       segmentUnits.push(...units.slice(unitIndex));
       segmentWordCount += units
         .slice(unitIndex)
-        .reduce((total, unit) => total + countWords(unit), 0);
+        .reduce((total, unit) => total + countWords(unit.text), 0);
       unitIndex = units.length;
     }
 
-    const narrationChunk = normalizeWhitespace(segmentUnits.join(' '));
+    const narrationChunk = normalizeWhitespace(segmentUnits.map(unit => unit.text).join(' '));
+    const promptOverride = normalizeWhitespace(
+      segmentUnits
+        .map(unit => unit.promptText)
+        .filter((value): value is string => Boolean(value))
+        .join(' ')
+    );
     segments.push({
       clipIndex,
       clipDuration,
       estimatedNarrationSecs: Number((segmentWordCount * secondsPerWord).toFixed(1)),
       narrationChunk,
-      promptText: buildSegmentPrompt(basePrompt, narrationChunk, clipIndex, totalClips),
+      promptText: buildSegmentPrompt(
+        basePrompt,
+        narrationChunk,
+        clipIndex,
+        totalClips,
+        promptOverride || undefined
+      ),
     });
   }
 
@@ -450,13 +509,21 @@ function stitchVideoClips(clipPaths: string[]): string {
 
 async function generateVideo(audioDurationSecs: number): Promise<string> {
   console.log('  [2/4] Generating video via Runway Gen-4 Turbo…');
-  const { script, prompt } = getConfig();
+  const { plan } = getConfig();
+  if (plan.targetDurationSeconds !== undefined && plan.targetDurationSeconds < audioDurationSecs) {
+    console.log(
+      `         target ${plan.targetDurationSeconds}s is shorter than narration ${audioDurationSecs.toFixed(1)}s; preserving full narration length`
+    );
+  }
 
-  const scenePlan = planNarrationScenes(script, prompt, audioDurationSecs);
+  const scenePlan = planNarrationScenes(plan.script, plan.prompt, audioDurationSecs, {
+    targetDurationSecs: plan.targetDurationSeconds,
+    narrationSegments: plan.narrationSegments,
+  });
   const durations = scenePlan.map(scene => scene.clipDuration);
   const plannedVisualSecs = durations.reduce((sum, d) => sum + d, 0);
   console.log(
-    `         narration ${audioDurationSecs.toFixed(1)}s, planned visual target up to ${MAX_REEL_SECS}s, plan: ${durations.join(' + ')} = ${plannedVisualSecs}s`
+    `         narration ${audioDurationSecs.toFixed(1)}s, target ${plan.targetDurationSeconds ?? 'auto'}s, planned visual target up to ${MAX_REEL_SECS}s, plan: ${durations.join(' + ')} = ${plannedVisualSecs}s`
   );
   scenePlan.forEach(scene => {
     console.log(
@@ -558,10 +625,34 @@ async function uploadToGitHubRelease(videoPath: string): Promise<string> {
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
-  const { prompt } = getConfig();
+  const { plan } = getConfig();
   console.log('NDCH Vision — Reel Generator');
-  console.log(`  voice  : ${VOICE_ID}`);
-  console.log(`  prompt : ${prompt.slice(0, 80)}…`);
+  console.log(`  engine config : ${plan.engineConfigPath ?? '(env only)'}`);
+  console.log(`  reel spec     : ${plan.reelSpecPath ?? '(env only)'}`);
+  console.log(`  voice         : ${plan.elevenLabs.voiceId ?? DEFAULT_VOICE_ID}`);
+  console.log(`  model         : ${plan.elevenLabs.modelId}`);
+  console.log(`  style         : ${plan.selectedStyleId ?? '(none)'}`);
+  console.log(`  target secs   : ${plan.targetDurationSeconds ?? '(audio-driven)'}`);
+  console.log(`  segments      : ${plan.narrationSegments.length || '(auto-split from script)'}`);
+  console.log(`  prompt        : ${plan.prompt.slice(0, 80)}…`);
+  if (plan.instagram.caption) {
+    console.log(`  caption       : ${plan.instagram.caption.slice(0, 80)}…`);
+  }
+  const resolvedPlanPath = join(TMP, `resolved-plan-${Date.now()}.json`);
+  writeFileSync(resolvedPlanPath, JSON.stringify({
+    engineConfigPath: plan.engineConfigPath,
+    reelSpecPath: plan.reelSpecPath,
+    concept: plan.concept,
+    selectedStyleId: plan.selectedStyleId,
+    script: plan.script,
+    narrationSegments: plan.narrationSegments,
+    prompt: plan.prompt,
+    targetDurationSeconds: plan.targetDurationSeconds,
+    elevenLabs: plan.elevenLabs,
+    instagram: plan.instagram,
+    subtitles: plan.subtitles,
+  }, null, 2));
+  console.log(`  resolved plan : ${resolvedPlanPath}`);
   console.log('');
 
   const audioPath = await generateVoiceover();
@@ -574,6 +665,17 @@ async function main(): Promise<void> {
   // Expose to subsequent Actions steps
   if (process.env.GITHUB_ENV) {
     appendFileSync(process.env.GITHUB_ENV, `REEL_VIDEO_URL=${publicUrl}\n`);
+    appendFileSync(process.env.GITHUB_ENV, `REEL_RESOLVED_PLAN_PATH=${resolvedPlanPath}\n`);
+    if (plan.instagram.caption) {
+      const captionEnvDelimiter = `EOF_REEL_CAPTION_${randomUUID().slice(0, 8)}`;
+      appendFileSync(process.env.GITHUB_ENV, `REEL_CAPTION<<${captionEnvDelimiter}\n${plan.instagram.caption}\n${captionEnvDelimiter}\n`);
+    }
+    if (plan.instagram.coverFrameOffsetMs !== undefined) {
+      appendFileSync(process.env.GITHUB_ENV, `REEL_THUMB_OFFSET_MS=${plan.instagram.coverFrameOffsetMs}\n`);
+    }
+    if (plan.instagram.shareToFeed !== undefined) {
+      appendFileSync(process.env.GITHUB_ENV, `REEL_SHARE_TO_FEED=${plan.instagram.shareToFeed}\n`);
+    }
   }
 
   console.log('');
