@@ -280,15 +280,23 @@ function ensureMinimumUnitCount(units: NarrationUnit[], minimumCount: number): N
     const unitToSplit = expanded[splitIndex];
     const pieces = splitWordsIntoChunks(unitToSplit.text, 2);
     if (pieces.length < 2) break;
+    const pieceWordCounts = pieces.map(piece => countWords(piece));
+    const totalPieceWords = pieceWordCounts.reduce((total, wordCount) => total + wordCount, 0);
 
     expanded.splice(
       splitIndex,
       1,
-      ...pieces.map(text => ({
+      ...pieces.map((text, index) => ({
         text,
         promptText: unitToSplit.promptText,
         durationSecs: unitToSplit.durationSecs !== undefined
-          ? Number((unitToSplit.durationSecs / pieces.length).toFixed(3))
+          ? Number((
+            unitToSplit.durationSecs * (
+              totalPieceWords > 0
+                ? pieceWordCounts[index] / totalPieceWords
+                : 1 / pieces.length
+            )
+          ).toFixed(3))
           : undefined,
       }))
     );
@@ -304,7 +312,7 @@ function resolveSegmentDurationSecs(
   const startSeconds = segment.timestampStartSeconds;
   const endSeconds = segment.timestampEndSeconds ?? nextSegment?.timestampStartSeconds;
 
-  if (startSeconds === undefined || endSeconds === undefined || endSeconds < startSeconds) {
+  if (startSeconds === undefined || endSeconds === undefined || endSeconds <= startSeconds) {
     return undefined;
   }
 
