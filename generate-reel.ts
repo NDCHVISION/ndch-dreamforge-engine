@@ -72,6 +72,40 @@ export interface ReelScenePlan {
   estimatedNarrationSecs: number;
   narrationChunk: string;
   promptText: string;
+  /** Indices into the original narrationSegments array that this clip covers. */
+  coveredSegmentIndices: number[];
+  /** Timestamp of the first covered segment's start (seconds). */
+  timestampStartSeconds?: number;
+  /** Timestamp of the last covered segment's end (seconds). */
+  timestampEndSeconds?: number;
+  /** Narration duration derived from timestamps (end − start). Undefined when timestamps are absent. */
+  intendedNarrationDurationSecs?: number;
+}
+
+/**
+ * Per-clip entry in the resolved scene timeline / allocation plan.
+ * Suitable for logging, artifact output, and future post-trim support.
+ */
+export interface SceneAllocationEntry {
+  clipIndex: number;
+  clipDuration: 5 | 10;
+  narrationText: string;
+  timestampStartSeconds?: number;
+  timestampEndSeconds?: number;
+  /** Total narration duration intended from timestamps. Undefined when timestamps are absent. */
+  intendedNarrationDurationSecs?: number;
+  /** Narration duration estimated from word count and audio duration. */
+  estimatedNarrationSecs: number;
+  promptText: string;
+  /** Original narration segments this clip covers, with per-segment timestamp detail. */
+  coveredSegments: Array<{
+    segmentIndex: number;
+    text: string;
+    timestampStartSeconds?: number;
+    timestampEndSeconds?: number;
+    /** Duration intended from this segment's timestamps. */
+    intendedDurationSecs?: number;
+  }>;
 }
 
 function getMediaDuration(path: string): number {
@@ -258,6 +292,8 @@ interface NarrationUnit {
   text: string;
   promptText?: string;
   durationSecs?: number;
+  /** Index into the original narrationSegments array. Undefined for auto-split units. */
+  sourceSegmentIndex?: number;
 }
 
 function splitUnitDurationSecs(totalDurationSecs: number, pieceWordCount: number, totalPieceWords: number, pieceCount: number): number {
@@ -300,6 +336,7 @@ function ensureMinimumUnitCount(units: NarrationUnit[], minimumCount: number): N
         durationSecs: unitToSplit.durationSecs !== undefined
           ? splitUnitDurationSecs(unitToSplit.durationSecs, pieceWordCounts[index], totalPieceWords, pieces.length)
           : undefined,
+        sourceSegmentIndex: unitToSplit.sourceSegmentIndex,
       }))
     );
   }
@@ -344,6 +381,7 @@ export function planNarrationScenes(
       text: normalizeWhitespace(segment.text),
       promptText: segment.promptText ? normalizeWhitespace(segment.promptText) : undefined,
       durationSecs: resolveSegmentDurationSecs(segment, segments[index + 1]),
+      sourceSegmentIndex: index,
     }))
     .filter(segment => segment.text);
   const seededUnits = explicitUnits && explicitUnits.length > 0
@@ -411,6 +449,33 @@ export function planNarrationScenes(
         .filter((value): value is string => Boolean(value))
         .join(' ')
     );
+
+    // Collect which original segments this clip covers (deduped, in order).
+    const coveredSegmentIndices = [...new Set(
+      segmentUnits
+        .map(u => u.sourceSegmentIndex)
+        .filter((i): i is number => i !== undefined)
+    )];
+
+    // Derive timestamp range and intended duration from covered segments.
+    const narrationSegments = options.narrationSegments ?? [];
+    let clipTimestampStart: number | undefined;
+    let clipTimestampEnd: number | undefined;
+    let intendedNarrationDurationSecs: number | undefined;
+    if (coveredSegmentIndices.length > 0) {
+      const firstSeg = narrationSegments[coveredSegmentIndices[0]];
+      const lastSeg = narrationSegments[coveredSegmentIndices[coveredSegmentIndices.length - 1]];
+      clipTimestampStart = firstSeg?.timestampStartSeconds;
+      clipTimestampEnd = lastSeg?.timestampEndSeconds;
+      if (
+        clipTimestampStart !== undefined &&
+        clipTimestampEnd !== undefined &&
+        clipTimestampEnd > clipTimestampStart
+      ) {
+        intendedNarrationDurationSecs = Number((clipTimestampEnd - clipTimestampStart).toFixed(3));
+      }
+    }
+
     segments.push({
       clipIndex,
       clipDuration,
@@ -423,10 +488,53 @@ export function planNarrationScenes(
         totalClips,
         promptOverride || undefined
       ),
+      coveredSegmentIndices,
+      timestampStartSeconds: clipTimestampStart,
+      timestampEndSeconds: clipTimestampEnd,
+      intendedNarrationDurationSecs,
     });
   }
 
   return segments;
+}
+
+/**
+ * Builds a resolved scene timeline / allocation plan from a completed scene plan
+ * and the original narration segments. Suitable for logging and artifact output.
+ */
+export function buildSceneTimeline(
+  scenePlan: ReelScenePlan[],
+  narrationSegments: ResolvedNarrationSegment[]
+): SceneAllocationEntry[] {
+  return scenePlan.map(scene => ({
+    clipIndex: scene.clipIndex,
+    clipDuration: scene.clipDuration,
+    narrationText: scene.narrationChunk,
+    timestampStartSeconds: scene.timestampStartSeconds,
+    timestampEndSeconds: scene.timestampEndSeconds,
+    intendedNarrationDurationSecs: scene.intendedNarrationDurationSecs,
+    estimatedNarrationSecs: scene.estimatedNarrationSecs,
+    promptText: scene.promptText,
+    coveredSegments: scene.coveredSegmentIndices.map(idx => {
+      const seg = narrationSegments[idx];
+      return {
+        segmentIndex: idx,
+        text: seg?.text ?? '',
+        timestampStartSeconds: seg?.timestampStartSeconds,
+        timestampEndSeconds: seg?.timestampEndSeconds,
+        intendedDurationSecs: seg
+          ? resolveSegmentDurationSecs(seg, narrationSegments[idx + 1])
+          : undefined,
+      };
+    }),
+  }));
+}
+
+/** Formats seconds as M:SS for display. */
+function formatTimestamp(secs: number): string {
+  const m = Math.floor(secs / 60);
+  const s = Math.floor(secs % 60);
+  return `${m}:${String(s).padStart(2, '0')}`;
 }
 
 async function generateRunwayClip(scene: ReelScenePlan, totalClips: number): Promise<string> {
@@ -541,7 +649,7 @@ function stitchVideoClips(clipPaths: string[]): string {
   return stitchedPath;
 }
 
-async function generateVideo(audioDurationSecs: number): Promise<string> {
+async function generateVideo(audioDurationSecs: number): Promise<{ videoPath: string; sceneTimeline: SceneAllocationEntry[] }> {
   console.log('  [2/4] Generating video via Runway Gen-4 Turbo…');
   const { plan } = getConfig();
   if (plan.targetDurationSeconds !== undefined && plan.targetDurationSeconds < audioDurationSecs) {
@@ -554,17 +662,35 @@ async function generateVideo(audioDurationSecs: number): Promise<string> {
     targetDurationSecs: plan.targetDurationSeconds,
     narrationSegments: plan.narrationSegments,
   });
+  const sceneTimeline = buildSceneTimeline(scenePlan, plan.narrationSegments);
   const durations = scenePlan.map(scene => scene.clipDuration);
   const plannedVisualSecs = durations.reduce((sum, d) => sum + d, 0);
   console.log(
     `         narration ${audioDurationSecs.toFixed(1)}s, target ${plan.targetDurationSeconds ?? 'auto'}s, planned visual target up to ${MAX_REEL_SECS}s, plan: ${durations.join(' + ')} = ${plannedVisualSecs}s`
   );
-  scenePlan.forEach(scene => {
+
+  // Emit resolved allocation plan — one line per clip with per-segment detail.
+  sceneTimeline.forEach(entry => {
+    const tsRange = entry.timestampStartSeconds !== undefined && entry.timestampEndSeconds !== undefined
+      ? ` | ${formatTimestamp(entry.timestampStartSeconds)}–${formatTimestamp(entry.timestampEndSeconds)}`
+      : '';
+    const intendedStr = entry.intendedNarrationDurationSecs !== undefined
+      ? `, intended ${entry.intendedNarrationDurationSecs.toFixed(1)}s`
+      : '';
     console.log(
-      `         scene ${scene.clipIndex + 1}/${scenePlan.length}: ~${scene.estimatedNarrationSecs.toFixed(1)}s narration, ${scene.clipDuration}s clip`
+      `         scene ${entry.clipIndex + 1}/${sceneTimeline.length}: ${entry.clipDuration}s clip${tsRange} — narration ~${entry.estimatedNarrationSecs.toFixed(1)}s${intendedStr}`
     );
-    console.log(`           narration: ${scene.narrationChunk}`);
-    console.log(`           prompt   : ${scene.promptText}`);
+    if (entry.coveredSegments.length > 0) {
+      const segSummary = entry.coveredSegments.map(seg => {
+        const segTs = seg.timestampStartSeconds !== undefined && seg.timestampEndSeconds !== undefined
+          ? ` (${formatTimestamp(seg.timestampStartSeconds)}–${formatTimestamp(seg.timestampEndSeconds)}${seg.intendedDurationSecs !== undefined ? `, ${seg.intendedDurationSecs.toFixed(1)}s` : ''})`
+          : '';
+        return `[${seg.segmentIndex}] "${limitWords(seg.text, 8)}"${segTs}`;
+      }).join(' · ');
+      console.log(`           covers   : ${segSummary}`);
+    }
+    console.log(`           narration: ${entry.narrationText}`);
+    console.log(`           prompt   : ${entry.promptText}`);
   });
 
   const clipPaths: string[] = [];
@@ -576,7 +702,7 @@ async function generateVideo(audioDurationSecs: number): Promise<string> {
   const stitchedPath = stitchVideoClips(clipPaths);
   const stitchedDuration = getMediaDuration(stitchedPath);
   console.log(`         stitched duration: ${stitchedDuration.toFixed(1)}s`);
-  return stitchedPath;
+  return { videoPath: stitchedPath, sceneTimeline };
 }
 
 // ── Step 3: FFmpeg merge ──────────────────────────────────────────────────────
@@ -672,6 +798,16 @@ async function main(): Promise<void> {
   if (plan.instagram.caption) {
     console.log(`  caption       : ${plan.instagram.caption.slice(0, 80)}…`);
   }
+  console.log('');
+
+  const audioPath = await generateVoiceover();
+  const durationSecs = getMediaDuration(audioPath);
+
+  const { videoPath, sceneTimeline } = await generateVideo(durationSecs);
+  const finalPath = mergeAudioVideo(audioPath, videoPath);
+  const publicUrl = await uploadToGitHubRelease(finalPath);
+
+  // Write resolved plan artifact (including scene timeline) after generation completes.
   const resolvedPlanPath = join(TMP, `resolved-plan-${Date.now()}.json`);
   writeFileSync(resolvedPlanPath, JSON.stringify({
     engineConfigPath: plan.engineConfigPath,
@@ -685,16 +821,9 @@ async function main(): Promise<void> {
     elevenLabs: plan.elevenLabs,
     instagram: plan.instagram,
     subtitles: plan.subtitles,
+    sceneTimeline,
   }, null, 2));
   console.log(`  resolved plan : ${resolvedPlanPath}`);
-  console.log('');
-
-  const audioPath = await generateVoiceover();
-  const durationSecs = getMediaDuration(audioPath);
-
-  const videoPath = await generateVideo(durationSecs);
-  const finalPath = mergeAudioVideo(audioPath, videoPath);
-  const publicUrl = await uploadToGitHubRelease(finalPath);
 
   // Expose to subsequent Actions steps
   if (process.env.GITHUB_ENV) {
