@@ -4,7 +4,7 @@ import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-import { planNarrationScenes, buildSceneTimeline } from './generate-reel.ts';
+import { planNarrationScenes, buildSceneTimeline, planClipDurations } from './generate-reel.ts';
 import { resolveProductionPlan } from './reel-plan.ts';
 
 test('resolveProductionPlan falls back to env values when JSON paths are absent', () => {
@@ -313,4 +313,19 @@ test('buildSceneTimeline produces empty coveredSegments when no explicit segment
     assert.equal(entry.timestampStartSeconds, undefined);
     assert.equal(entry.intendedNarrationDurationSecs, undefined);
   }
+});
+
+test('planClipDurations clamps long requests and composes with 10s clips and a final remainder clip', () => {
+  const durations = planClipDurations(220, 220);
+  const total = durations.reduce((sum, value) => sum + value, 0);
+
+  assert.equal(total, 90);
+  assert.deepEqual(durations, [10, 10, 10, 10, 10, 10, 10, 10, 10]);
+});
+
+test('planNarrationScenes throws when script is empty after normalization', () => {
+  assert.throws(
+    () => planNarrationScenes('   \n\t   ', 'prompt', 12),
+    /Narration script must contain non-whitespace content/
+  );
 });

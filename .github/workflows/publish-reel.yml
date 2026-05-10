@@ -38,6 +38,9 @@ jobs:
           npm install -g tsx
           sudo apt-get install -y ffmpeg
 
+      - name: Run reel planning tests
+        run: npx --yes tsx --test reel-plan.test.ts
+
       - name: Generate voiceover + video
         env:
           ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}

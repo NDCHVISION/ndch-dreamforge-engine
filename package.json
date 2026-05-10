@@ -1,0 +1,10 @@
+{
+  "name": "ndch-dreamforge-engine",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "npx --yes tsx --test reel-plan.test.ts",
+    "generate": "npx --yes tsx generate-reel.ts",
+    "publish": "npx --yes tsx publish-reel.ts"
+  }
+}
