@@ -20,6 +20,7 @@ import { execSync }                                    from 'node:child_process'
 import { randomUUID }                                  from 'node:crypto';
 import { tmpdir }                                      from 'node:os';
 import { join, resolve }                               from 'node:path';
+import { fileURLToPath }                               from 'node:url';
 
 // ── Env ───────────────────────────────────────────────────────────────────────
 
@@ -29,11 +30,13 @@ function requireEnv(name: string): string {
   return v;
 }
 
-const ELEVENLABS_KEY = requireEnv('ELEVENLABS_API_KEY');
-const RUNWAY_KEY     = requireEnv('RUNWAY_API_KEY');
-const GITHUB_TOKEN   = requireEnv('GITHUB_TOKEN');
-const SCRIPT         = requireEnv('REEL_SCRIPT');
-const PROMPT         = requireEnv('REEL_PROMPT');
+interface RuntimeConfig {
+  elevenLabsKey: string;
+  runwayKey: string;
+  githubToken: string;
+  script: string;
+  prompt: string;
+}
 
 const VOICE_ID       = 'C9Uh5MFptuXa176UlaXE';   // NDCH Vision cloned voice
 const REPO           = 'NDCHVISION/ndch-dreamforge-engine';
@@ -42,6 +45,26 @@ const MAX_REEL_SECS  = 45;
 const RUNWAY_TIMEOUT_MS = 300_000;
 
 const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
+let runtimeConfig: RuntimeConfig | undefined;
+
+function getConfig(): RuntimeConfig {
+  runtimeConfig ??= {
+    elevenLabsKey: requireEnv('ELEVENLABS_API_KEY'),
+    runwayKey: requireEnv('RUNWAY_API_KEY'),
+    githubToken: requireEnv('GITHUB_TOKEN'),
+    script: requireEnv('REEL_SCRIPT'),
+    prompt: requireEnv('REEL_PROMPT'),
+  };
+  return runtimeConfig;
+}
+
+export interface ReelScenePlan {
+  clipIndex: number;
+  clipDuration: 5 | 10;
+  estimatedNarrationSecs: number;
+  narrationChunk: string;
+  promptText: string;
+}
 
 function getMediaDuration(path: string): number {
   try {
@@ -63,18 +86,19 @@ function getMediaDuration(path: string): number {
 
 async function generateVoiceover(): Promise<string> {
   console.log('  [1/4] Generating voiceover via ElevenLabs…');
+  const { elevenLabsKey, script } = getConfig();
 
   const res = await fetch(
     `https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}`,
     {
       method:  'POST',
       headers: {
-        'xi-api-key':   ELEVENLABS_KEY,
+        'xi-api-key':   elevenLabsKey,
         'Content-Type': 'application/json',
         'Accept':       'audio/mpeg',
       },
       body: JSON.stringify({
-        text:     SCRIPT,
+        text:     script,
         model_id: 'eleven_multilingual_v2',
         voice_settings: { stability: 0.5, similarity_boost: 0.75 },
       }),
@@ -94,7 +118,127 @@ async function generateVoiceover(): Promise<string> {
 
 // ── Step 2: Runway Gen-4 video ────────────────────────────────────────────────
 
-function planClipDurations(audioDurationSecs: number): Array<5 | 10> {
+function normalizeWhitespace(text: string): string {
+  return text.replace(/\s+/g, ' ').trim();
+}
+
+function countWords(text: string): number {
+  const matches = normalizeWhitespace(text).match(/\b[\p{L}\p{N}'’/\-]+\b/gu);
+  return matches?.length ?? 0;
+}
+
+function splitWordsIntoChunks(text: string, chunkCount: number): string[] {
+  const words = normalizeWhitespace(text).split(' ').filter(Boolean);
+  if (words.length === 0) return [];
+
+  const safeChunkCount = Math.max(1, Math.min(chunkCount, words.length));
+  const chunks: string[] = [];
+  let start = 0;
+
+  for (let i = 0; i < safeChunkCount; i++) {
+    const remainingWords = words.length - start;
+    const remainingChunks = safeChunkCount - i;
+    const chunkSize = Math.ceil(remainingWords / remainingChunks);
+    chunks.push(words.slice(start, start + chunkSize).join(' '));
+    start += chunkSize;
+  }
+
+  return chunks;
+}
+
+function mergeTinyUnits(units: string[]): string[] {
+  const merged: string[] = [];
+
+  for (const unit of units) {
+    if (countWords(unit) <= 3) {
+      if (merged.length > 0) {
+        merged[merged.length - 1] = `${merged[merged.length - 1]} ${unit}`.trim();
+      } else {
+        merged.push(unit);
+      }
+      continue;
+    }
+
+    merged.push(unit);
+  }
+
+  return merged;
+}
+
+function splitNarrationUnits(script: string): string[] {
+  const normalized = normalizeWhitespace(script);
+  if (!normalized) return [];
+
+  const sentenceUnits = normalized
+    .split(/(?<=[.!?])\s+/)
+    .map(part => part.trim())
+    .filter(Boolean);
+
+  return mergeTinyUnits(sentenceUnits.flatMap(sentence => {
+    if (countWords(sentence) <= 18) return [sentence];
+
+    const clauses = sentence
+      .split(/(?<=[,;:])\s+/)
+      .map(clause => clause.trim())
+      .filter(Boolean);
+
+    if (clauses.length <= 1) {
+      return splitWordsIntoChunks(sentence, Math.ceil(countWords(sentence) / 16));
+    }
+
+    return clauses.flatMap(clause => {
+      if (countWords(clause) <= 18) return [clause];
+      return splitWordsIntoChunks(clause, Math.ceil(countWords(clause) / 16));
+    });
+  }));
+}
+
+function ensureMinimumUnitCount(units: string[], minimumCount: number): string[] {
+  const expanded = [...units];
+
+  while (expanded.length < minimumCount) {
+    let splitIndex = -1;
+    let longestWordCount = 0;
+
+    for (let i = 0; i < expanded.length; i++) {
+      const wordCount = countWords(expanded[i]);
+      if (wordCount > longestWordCount && wordCount > 1) {
+        longestWordCount = wordCount;
+        splitIndex = i;
+      }
+    }
+
+    if (splitIndex === -1) break;
+
+    const pieces = splitWordsIntoChunks(expanded[splitIndex], 2);
+    if (pieces.length < 2) break;
+
+    expanded.splice(splitIndex, 1, ...pieces);
+  }
+
+  return expanded;
+}
+
+function limitWords(text: string, maxWords: number): string {
+  const words = normalizeWhitespace(text).split(' ').filter(Boolean);
+  if (words.length <= maxWords) return words.join(' ');
+  return `${words.slice(0, maxWords).join(' ')}…`;
+}
+
+function sceneCue(index: number, totalScenes: number): string {
+  if (totalScenes === 1) return 'Single continuous scene';
+  if (index === 0) return 'Opening scene';
+  if (index === totalScenes - 1) return 'Closing scene';
+  return `Scene ${index + 1} of ${totalScenes}`;
+}
+
+export function buildSegmentPrompt(basePrompt: string, narrationChunk: string, clipIndex: number, totalClips: number): string {
+  const promptAnchor = normalizeWhitespace(basePrompt).replace(/[.?!,;:\s]+$/, '');
+  const sceneFocus = limitWords(narrationChunk, 24);
+  return `${promptAnchor}. ${sceneCue(clipIndex, totalClips)}. Keep the same visual style and evolve the imagery to match: ${sceneFocus}`;
+}
+
+export function planClipDurations(audioDurationSecs: number): Array<5 | 10> {
   const target = Math.max(5, Math.min(MAX_REEL_SECS, Math.ceil(audioDurationSecs)));
   const durations: Array<5 | 10> = [];
   let remaining = target;
@@ -105,7 +249,7 @@ function planClipDurations(audioDurationSecs: number): Array<5 | 10> {
       remaining -= 10;
       continue;
     }
-    // For 6-10 seconds remaining, use 10 to avoid ending visuals before narration.
+
     durations.push(remaining <= 5 ? 5 : 10);
     break;
   }
@@ -113,27 +257,109 @@ function planClipDurations(audioDurationSecs: number): Array<5 | 10> {
   return durations;
 }
 
-async function generateRunwayClip(duration: 5 | 10, clipIndex: number, totalClips: number): Promise<string> {
-  console.log(`         clip ${clipIndex + 1}/${totalClips}: requesting ${duration}s`);
+export function planNarrationScenes(script: string, basePrompt: string, audioDurationSecs: number): ReelScenePlan[] {
+  const clipDurations = planClipDurations(audioDurationSecs);
+  const normalizedScript = normalizeWhitespace(script);
+
+  if (!normalizedScript) throw new Error('Narration script must contain non-whitespace content');
+
+  const totalWords = countWords(normalizedScript);
+  const secondsPerWord = totalWords > 0 ? audioDurationSecs / totalWords : 0;
+  const totalClips = clipDurations.length;
+  const units = ensureMinimumUnitCount(splitNarrationUnits(normalizedScript), totalClips);
+  const segments: ReelScenePlan[] = [];
+  let unitIndex = 0;
+
+  for (let clipIndex = 0; clipIndex < totalClips; clipIndex++) {
+    const clipDuration = clipDurations[clipIndex];
+    const targetNarrationSecs = clipDuration;
+    const minimumNarrationSecs = Math.max(2.5, clipDuration * 0.6);
+    const segmentUnits: string[] = [];
+    let segmentWordCount = 0;
+
+    while (unitIndex < units.length) {
+      const unit = units[unitIndex];
+      const unitWordCount = countWords(unit);
+      const projectedWordCount = segmentWordCount + unitWordCount;
+      const currentNarrationSecs = segmentWordCount * secondsPerWord;
+      const projectedSecs = projectedWordCount * secondsPerWord;
+      const remainingUnits = units.length - (unitIndex + 1);
+      const remainingClips = totalClips - (clipIndex + 1);
+      const mustLeaveUnitsForRemainingClips = remainingUnits < remainingClips;
+
+      if (segmentUnits.length === 0) {
+        segmentUnits.push(unit);
+        segmentWordCount = projectedWordCount;
+        unitIndex++;
+        continue;
+      }
+
+      if (mustLeaveUnitsForRemainingClips) break;
+      if (currentNarrationSecs < minimumNarrationSecs) {
+        segmentUnits.push(unit);
+        segmentWordCount = projectedWordCount;
+        unitIndex++;
+        continue;
+      }
+
+      const currentGap = Math.abs(currentNarrationSecs - targetNarrationSecs);
+      const projectedGap = Math.abs(projectedSecs - targetNarrationSecs);
+
+      if (projectedSecs <= targetNarrationSecs || projectedGap <= currentGap) {
+        segmentUnits.push(unit);
+        segmentWordCount = projectedWordCount;
+        unitIndex++;
+        continue;
+      }
+
+      break;
+    }
+
+    if (clipIndex === totalClips - 1 && unitIndex < units.length) {
+      segmentUnits.push(...units.slice(unitIndex));
+      segmentWordCount += units
+        .slice(unitIndex)
+        .reduce((total, unit) => total + countWords(unit), 0);
+      unitIndex = units.length;
+    }
+
+    const narrationChunk = normalizeWhitespace(segmentUnits.join(' '));
+    segments.push({
+      clipIndex,
+      clipDuration,
+      estimatedNarrationSecs: Number((segmentWordCount * secondsPerWord).toFixed(1)),
+      narrationChunk,
+      promptText: buildSegmentPrompt(basePrompt, narrationChunk, clipIndex, totalClips),
+    });
+  }
+
+  return segments;
+}
+
+async function generateRunwayClip(scene: ReelScenePlan, totalClips: number): Promise<string> {
+  const { runwayKey } = getConfig();
+  console.log(
+    `         clip ${scene.clipIndex + 1}/${totalClips}: requesting ${scene.clipDuration}s for "${limitWords(scene.narrationChunk, 14)}"`
+  );
   const createRes = await fetch('https://api.runwayml.com/v1/text_to_video', {
     method:  'POST',
     headers: {
-      'Authorization':   `Bearer ${RUNWAY_KEY}`,
+      'Authorization':   `Bearer ${runwayKey}`,
       'Content-Type':    'application/json',
       'X-Runway-Version': '2024-11-06',
     },
     body: JSON.stringify({
-      promptText: PROMPT,
+      promptText: scene.promptText,
       model:      'gen4_turbo',
       ratio:      '720:1280',   // 9:16 — Instagram Reels portrait
-      duration,
+      duration:   scene.clipDuration,
     }),
   });
 
   if (!createRes.ok) throw new Error(`Runway create ${createRes.status}: ${await createRes.text()}`);
 
   const { id } = await createRes.json() as { id: string };
-  console.log(`         clip ${clipIndex + 1}/${totalClips}: task id ${id}`);
+  console.log(`         clip ${scene.clipIndex + 1}/${totalClips}: task id ${id}`);
 
   // Poll up to 5 minutes
   const deadline = Date.now() + RUNWAY_TIMEOUT_MS;
@@ -145,7 +371,7 @@ async function generateRunwayClip(duration: 5 | 10, clipIndex: number, totalClip
 
     const pollRes = await fetch(`https://api.runwayml.com/v1/tasks/${id}`, {
       headers: {
-        'Authorization':    `Bearer ${RUNWAY_KEY}`,
+        'Authorization':    `Bearer ${runwayKey}`,
         'X-Runway-Version': '2024-11-06',
       },
     });
@@ -160,7 +386,7 @@ async function generateRunwayClip(duration: 5 | 10, clipIndex: number, totalClip
       failure?: string;
     };
 
-    console.log(`         clip ${clipIndex + 1}/${totalClips} [${attempt}] ${task.status}`);
+    console.log(`         clip ${scene.clipIndex + 1}/${totalClips} [${attempt}] ${task.status}`);
 
     if (task.status === 'SUCCEEDED') {
       const videoUrl = task.output?.[0];
@@ -168,11 +394,11 @@ async function generateRunwayClip(duration: 5 | 10, clipIndex: number, totalClip
         `Runway task ${id} succeeded but returned no output URL — this may indicate an API response change or incomplete generation`
       );
 
-      const videoPath = join(TMP, `runway-${String(clipIndex + 1).padStart(2, '0')}.mp4`);
+      const videoPath = join(TMP, `runway-${String(scene.clipIndex + 1).padStart(2, '0')}.mp4`);
       const dl        = await fetch(videoUrl);
       if (!dl.ok) throw new Error(`Runway download ${dl.status} for task ${id}: ${await dl.text()}`);
       writeFileSync(videoPath, Buffer.from(await dl.arrayBuffer()));
-      console.log(`         clip ${clipIndex + 1}/${totalClips}: saved ${videoPath}`);
+      console.log(`         clip ${scene.clipIndex + 1}/${totalClips}: saved ${videoPath}`);
       return videoPath;
     }
 
@@ -224,16 +450,25 @@ function stitchVideoClips(clipPaths: string[]): string {
 
 async function generateVideo(audioDurationSecs: number): Promise<string> {
   console.log('  [2/4] Generating video via Runway Gen-4 Turbo…');
+  const { script, prompt } = getConfig();
 
-  const durations = planClipDurations(audioDurationSecs);
+  const scenePlan = planNarrationScenes(script, prompt, audioDurationSecs);
+  const durations = scenePlan.map(scene => scene.clipDuration);
   const plannedVisualSecs = durations.reduce((sum, d) => sum + d, 0);
   console.log(
     `         narration ${audioDurationSecs.toFixed(1)}s, planned visual target up to ${MAX_REEL_SECS}s, plan: ${durations.join(' + ')} = ${plannedVisualSecs}s`
   );
+  scenePlan.forEach(scene => {
+    console.log(
+      `         scene ${scene.clipIndex + 1}/${scenePlan.length}: ~${scene.estimatedNarrationSecs.toFixed(1)}s narration, ${scene.clipDuration}s clip`
+    );
+    console.log(`           narration: ${scene.narrationChunk}`);
+    console.log(`           prompt   : ${scene.promptText}`);
+  });
 
   const clipPaths: string[] = [];
-  for (let i = 0; i < durations.length; i++) {
-    const clipPath = await generateRunwayClip(durations[i], i, durations.length);
+  for (const scene of scenePlan) {
+    const clipPath = await generateRunwayClip(scene, scenePlan.length);
     clipPaths.push(clipPath);
   }
 
@@ -270,6 +505,7 @@ function mergeAudioVideo(audioPath: string, videoPath: string): string {
 
 async function uploadToGitHubRelease(videoPath: string): Promise<string> {
   console.log('  [4/4] Uploading to GitHub Release…');
+  const { githubToken } = getConfig();
 
   const tag  = `reel-${Date.now()}`;
   const name = `Reel ${new Date().toISOString().slice(0, 10)}`;
@@ -280,7 +516,7 @@ async function uploadToGitHubRelease(videoPath: string): Promise<string> {
     {
       method:  'POST',
       headers: {
-        'Authorization': `token ${GITHUB_TOKEN}`,
+        'Authorization': `token ${githubToken}`,
         'Content-Type':  'application/json',
         'Accept':        'application/vnd.github.v3+json',
       },
@@ -305,7 +541,7 @@ async function uploadToGitHubRelease(videoPath: string): Promise<string> {
   const uploadRes = await fetch(uploadUrl, {
     method:  'POST',
     headers: {
-      'Authorization': `token ${GITHUB_TOKEN}`,
+      'Authorization': `token ${githubToken}`,
       'Content-Type':  'video/mp4',
       'Accept':        'application/vnd.github.v3+json',
     },
@@ -321,22 +557,33 @@ async function uploadToGitHubRelease(videoPath: string): Promise<string> {
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 
-console.log('NDCH Vision — Reel Generator');
-console.log(`  voice  : ${VOICE_ID}`);
-console.log(`  prompt : ${PROMPT.slice(0, 80)}…`);
-console.log('');
+async function main(): Promise<void> {
+  const { prompt } = getConfig();
+  console.log('NDCH Vision — Reel Generator');
+  console.log(`  voice  : ${VOICE_ID}`);
+  console.log(`  prompt : ${prompt.slice(0, 80)}…`);
+  console.log('');
 
-const audioPath = await generateVoiceover();
-const durationSecs = getMediaDuration(audioPath);
+  const audioPath = await generateVoiceover();
+  const durationSecs = getMediaDuration(audioPath);
 
-const videoPath = await generateVideo(durationSecs);
-const finalPath = mergeAudioVideo(audioPath, videoPath);
-const publicUrl = await uploadToGitHubRelease(finalPath);
+  const videoPath = await generateVideo(durationSecs);
+  const finalPath = mergeAudioVideo(audioPath, videoPath);
+  const publicUrl = await uploadToGitHubRelease(finalPath);
 
-// Expose to subsequent Actions steps
-if (process.env.GITHUB_ENV) {
-  appendFileSync(process.env.GITHUB_ENV, `REEL_VIDEO_URL=${publicUrl}\n`);
+  // Expose to subsequent Actions steps
+  if (process.env.GITHUB_ENV) {
+    appendFileSync(process.env.GITHUB_ENV, `REEL_VIDEO_URL=${publicUrl}\n`);
+  }
+
+  console.log('');
+  console.log(`✓  Reel ready → ${publicUrl}`);
 }
 
-console.log('');
-console.log(`✓  Reel ready → ${publicUrl}`);
+if (process.argv[1] && resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url))) {
+  main().catch(err => {
+    console.error('');
+    console.error('✗  Reel generation failed:', err instanceof Error ? err.message : String(err));
+    process.exit(1);
+  });
+}
