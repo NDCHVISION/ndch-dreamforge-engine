@@ -510,6 +510,11 @@ function stitchVideoClips(clipPaths: string[]): string {
 async function generateVideo(audioDurationSecs: number): Promise<string> {
   console.log('  [2/4] Generating video via Runway Gen-4 Turbo…');
   const { plan } = getConfig();
+  if (plan.targetDurationSeconds !== undefined && plan.targetDurationSeconds < audioDurationSecs) {
+    console.log(
+      `         target ${plan.targetDurationSeconds}s is shorter than narration ${audioDurationSecs.toFixed(1)}s; preserving full narration length`
+    );
+  }
 
   const scenePlan = planNarrationScenes(plan.script, plan.prompt, audioDurationSecs, {
     targetDurationSecs: plan.targetDurationSeconds,
@@ -662,7 +667,7 @@ async function main(): Promise<void> {
     appendFileSync(process.env.GITHUB_ENV, `REEL_VIDEO_URL=${publicUrl}\n`);
     appendFileSync(process.env.GITHUB_ENV, `REEL_RESOLVED_PLAN_PATH=${resolvedPlanPath}\n`);
     if (plan.instagram.caption) {
-      const captionEnvDelimiter = 'EOF_REEL_CAPTION';
+      const captionEnvDelimiter = `EOF_REEL_CAPTION_${Date.now()}_${randomUUID().slice(0, 8)}`;
       appendFileSync(process.env.GITHUB_ENV, `REEL_CAPTION<<${captionEnvDelimiter}\n${plan.instagram.caption}\n${captionEnvDelimiter}\n`);
     }
     if (plan.instagram.coverFrameOffsetMs !== undefined) {

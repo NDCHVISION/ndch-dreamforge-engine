@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 type JsonRecord = Record<string, unknown>;
+const MAX_STYLE_QUOTE_WORDS = 24;
 
 function isRecord(value: unknown): value is JsonRecord {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -68,6 +69,10 @@ function trimToWords(text: string, maxWords: number): string {
   const words = normalizeWhitespace(text).split(' ').filter(Boolean);
   if (words.length <= maxWords) return words.join(' ');
   return `${words.slice(0, maxWords).join(' ')}…`;
+}
+
+function isValidClockComponent(value: number | undefined): boolean {
+  return value === undefined || value < 60;
 }
 
 function parseJsonFile(path: string, label: string): JsonRecord {
@@ -165,7 +170,7 @@ function parseTimestampSeconds(value: unknown): number | undefined {
     const secondNumber = Number(second);
     const thirdNumber = third !== undefined ? Number(third) : undefined;
 
-    if (secondNumber >= 60 || (thirdNumber !== undefined && thirdNumber >= 60)) {
+    if (!isValidClockComponent(secondNumber) || !isValidClockComponent(thirdNumber)) {
       return undefined;
     }
 
@@ -249,7 +254,7 @@ function buildBasePrompt(
   const stylePrompt = pickString(style, [['base_prompt']]);
 
   if (stylePrompt) {
-    return stylePrompt.replace(/\bQUOTE\b/g, trimToWords(fallbackQuote, 24));
+    return stylePrompt.replace(/\bQUOTE\b/g, trimToWords(fallbackQuote, MAX_STYLE_QUOTE_WORDS));
   }
 
   return fallbackPrompt;
