@@ -189,7 +189,7 @@ function stitchVideoClips(clipPaths: string[]): string {
   const stitchedPath = join(TMP, `runway-stitched-${uniqueId}.mp4`);
 
   const listFile = clipPaths.map(path => {
-    if (/[\r\n]/.test(path)) {
+    if (/[\r\n]/.test(path) || !path.startsWith(`${TMP}/runway-`) || !path.endsWith('.mp4')) {
       throw new Error(`Unsafe clip path for ffmpeg concat list: ${path}`);
     }
     return `file '${path.replace(/'/g, `'\\''`)}'`;
@@ -217,7 +217,7 @@ async function generateVideo(audioDurationSecs: number): Promise<string> {
   const durations = planClipDurations(audioDurationSecs);
   const plannedVisualSecs = durations.reduce((sum, d) => sum + d, 0);
   console.log(
-    `         narration ${audioDurationSecs.toFixed(1)}s, target up to ${MAX_REEL_SECS}s, plan: ${durations.join(' + ')} = ${plannedVisualSecs}s`
+    `         narration ${audioDurationSecs.toFixed(1)}s, planned visual target up to ${MAX_REEL_SECS}s, plan: ${durations.join(' + ')} = ${plannedVisualSecs}s`
   );
 
   const clipPaths: string[] = [];
