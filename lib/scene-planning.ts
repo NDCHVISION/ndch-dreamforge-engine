@@ -3,7 +3,7 @@ import { type ResolvedNarrationSegment } from '../reel-plan.ts';
 
 const MAX_REEL_SECS = ENGINE_DEFAULTS.maxDurationSeconds;
 const MAX_RUNWAY_PROMPT_CHARS = 1000;
-const SCENE_PROMPT_SUFFIX_BUDGET = 260;
+const SCENE_PROMPT_SUFFIX_BUDGET = 200;
 const MAX_PROMPT_ANCHOR_LENGTH = MAX_RUNWAY_PROMPT_CHARS - SCENE_PROMPT_SUFFIX_BUDGET;
 
 export type SceneRole = 'opening' | 'middle' | 'closing';
@@ -192,6 +192,7 @@ function sceneRoleForIndex(index: number, totalScenes: number): SceneRole {
 }
 
 export function sceneCue(index: number, totalScenes: number): string {
+  if (totalScenes === 1) return 'Single continuous scene';
   const role = sceneRoleForIndex(index, totalScenes);
   if (role === 'opening') return 'Opening scene';
   if (role === 'closing') return 'Closing scene';
