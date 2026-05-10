@@ -261,6 +261,7 @@ interface NarrationUnit {
 }
 
 function splitUnitDurationSecs(totalDurationSecs: number, pieceWordCount: number, totalPieceWords: number, pieceCount: number): number {
+  if (pieceCount <= 0) return 0;
   const weight = totalPieceWords > 0
     ? pieceWordCount / totalPieceWords
     : 1 / pieceCount;
