@@ -17,6 +17,7 @@
 
 import { writeFileSync, readFileSync, appendFileSync } from 'node:fs';
 import { execSync }                                    from 'node:child_process';
+import { randomUUID }                                  from 'node:crypto';
 import { tmpdir }                                      from 'node:os';
 import { join }                                        from 'node:path';
 
@@ -183,12 +184,16 @@ async function generateRunwayClip(duration: 5 | 10, clipIndex: number, totalClip
 function stitchVideoClips(clipPaths: string[]): string {
   if (clipPaths.length === 0) throw new Error('No Runway clips were generated for stitching');
 
-  const uniqueId = `${Date.now()}-${process.pid}-${Math.random().toString(36).slice(2, 8)}`;
+  const uniqueId = randomUUID();
   const listPath = join(TMP, `runway-concat-${uniqueId}.txt`);
   const stitchedPath = join(TMP, `runway-stitched-${uniqueId}.mp4`);
-  const listFile = clipPaths
-    .map(path => `file '${path.replace(/'/g, `'\\''`)}'`)
-    .join('\n');
+
+  const listFile = clipPaths.map(path => {
+    if (/[\r\n]/.test(path)) {
+      throw new Error(`Unsafe clip path for ffmpeg concat list: ${path}`);
+    }
+    return `file '${path.replace(/'/g, `'\\''`)}'`;
+  }).join('\n');
 
   writeFileSync(listPath, `${listFile}\n`);
   console.log('         stitching clips with ffmpeg concat…');
