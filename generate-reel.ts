@@ -670,7 +670,7 @@ async function generateRunwayClip(scene: ReelScenePlan, totalClips: number): Pro
   console.log(
     `         clip ${scene.clipIndex + 1}/${totalClips}: requesting ${scene.clipDuration}s for "${limitWords(scene.narrationChunk, 14)}"`
   );
-  const createRes = await fetch('https://api.runwayml.com/v1/text_to_video', {
+  const createRes = await fetch('https://api.dev.runwayml.com/v1/text_to_video', {
     method:  'POST',
     headers: {
       'Authorization':   `Bearer ${runwayKey}`,
@@ -698,7 +698,7 @@ async function generateRunwayClip(scene: ReelScenePlan, totalClips: number): Pro
     await sleep(10_000);
     attempt++;
 
-    const pollRes = await fetch(`https://api.runwayml.com/v1/tasks/${id}`, {
+    const pollRes = await fetch(`https://api.dev.runwayml.com/v1/tasks/${id}`, {
       headers: {
         'Authorization':    `Bearer ${runwayKey}`,
         'X-Runway-Version': '2024-11-06',
@@ -978,5 +978,3 @@ if (process.argv[1] && resolve(process.argv[1]) === resolve(fileURLToPath(import
     console.error('');
     console.error('✗  Reel generation failed:', err instanceof Error ? err.message : String(err));
     process.exit(1);
-  });
-}
