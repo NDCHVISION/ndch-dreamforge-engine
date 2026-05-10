@@ -4,7 +4,12 @@ import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-import { planNarrationScenes, buildSceneTimeline, planClipDurations } from './generate-reel.ts';
+import {
+  buildSceneTimeline,
+  buildSegmentPrompt,
+  planClipDurations,
+  planNarrationScenes,
+} from './lib/scene-planning.ts';
 import { resolveProductionPlan } from './reel-plan.ts';
 
 test('resolveProductionPlan falls back to env values when JSON paths are absent', () => {
@@ -328,4 +333,66 @@ test('planNarrationScenes throws when script is empty after normalization', () =
     () => planNarrationScenes('   \n\t   ', 'prompt', 12),
     /Narration script must contain non-whitespace content/
   );
+});
+
+test('planNarrationScenes assigns opening middle closing roles', () => {
+  const scenes = planNarrationScenes(
+    'First we rise. Then we adapt with precision. Finally we become undeniable.',
+    'Cinematic transformation sequence',
+    22,
+    { targetDurationSecs: 26 }
+  );
+
+  assert.equal(scenes.length, 3);
+  assert.deepEqual(scenes.map(scene => scene.role), ['opening', 'middle', 'closing']);
+});
+
+test('buildSegmentPrompt uses opening-focused cinematic direction', () => {
+  const prompt = buildSegmentPrompt(
+    'Dark cinematic city under stormlight',
+    'We begin now.',
+    0,
+    3
+  );
+
+  assert.match(prompt, /Opening scene/);
+  assert.match(prompt, /Bold hook/);
+});
+
+test('buildSegmentPrompt uses closing-focused cinematic direction', () => {
+  const prompt = buildSegmentPrompt(
+    'Dark cinematic city under stormlight',
+    'This is who we are.',
+    2,
+    3
+  );
+
+  assert.match(prompt, /Closing scene/);
+  assert.match(prompt, /Conclusive final beat/);
+});
+
+test('planNarrationScenes preserves short punchy opening line as its own scene when possible', () => {
+  const scenes = planNarrationScenes(
+    'Move. Build the future with relentless precision and calm execution every day.',
+    'Cinematic future foundry',
+    14,
+    { targetDurationSecs: 20 }
+  );
+
+  assert.equal(scenes.length, 2);
+  assert.equal(scenes[0].narrationChunk, 'Move.');
+  assert.equal(scenes[0].role, 'opening');
+});
+
+test('planNarrationScenes preserves short declarative closing line as final beat when possible', () => {
+  const scenes = planNarrationScenes(
+    'We rise through pressure and discipline, every single day. We win.',
+    'Cinematic training arc',
+    16,
+    { targetDurationSecs: 20 }
+  );
+
+  assert.equal(scenes.length, 2);
+  assert.equal(scenes[1].narrationChunk, 'We win.');
+  assert.equal(scenes[1].role, 'closing');
 });
