@@ -977,4 +977,8 @@ async function main(): Promise<void> {
 
 if (process.argv[1] && resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url))) {
   main().catch(err => {
-    
+        console.error('');
+    console.error('✗  Reel generation failed:', err instanceof Error ? err.message : String(err));
+    process.exit(1);
+  });
+}
