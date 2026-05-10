@@ -7,7 +7,7 @@ on:
         description: 'Voiceover script — spoken in your ElevenLabs voice'
         required: true
       video_prompt:
-        description: 'Visual prompt for Runway Gen-4 (describe the scene/mood)'
+        description: 'Base visual prompt/style anchor for Runway Gen-4; narration segments add scene-specific details'
         required: true
       caption:
         description: 'Instagram caption (max 2200 chars, include hashtags)'
