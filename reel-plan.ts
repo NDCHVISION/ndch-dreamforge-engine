@@ -161,8 +161,16 @@ function parseTimestampSeconds(value: unknown): number | undefined {
   const colonMatch = trimmed.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);
   if (colonMatch) {
     const [, first, second, third] = colonMatch;
-    if (third !== undefined) return (Number(first) * 3600) + (Number(second) * 60) + Number(third);
-    return (Number(first) * 60) + Number(second);
+    const firstNumber = Number(first);
+    const secondNumber = Number(second);
+    const thirdNumber = third !== undefined ? Number(third) : undefined;
+
+    if (secondNumber >= 60 || (thirdNumber !== undefined && thirdNumber >= 60)) {
+      return undefined;
+    }
+
+    if (thirdNumber !== undefined) return (firstNumber * 3600) + (secondNumber * 60) + thirdNumber;
+    return (firstNumber * 60) + secondNumber;
   }
 
   const secondsMatch = trimmed.match(/(\d+(?:\.\d+)?)\s*s(?:ec(?:onds?)?)?/i);
@@ -189,12 +197,14 @@ function selectStyleId(engineConfig: JsonRecord | undefined, reelSpec: JsonRecor
 
   const text = fallbackText.toLowerCase();
   const prioritizedRules = rules
-    .filter(isRecord)
+    .map((rule, index) => ({ rule, index }))
+    .filter((entry): entry is { rule: JsonRecord; index: number } => isRecord(entry.rule))
     .sort((left, right) => {
-      const leftPriority = typeof left.priority === 'number' ? left.priority : Number.MAX_SAFE_INTEGER;
-      const rightPriority = typeof right.priority === 'number' ? right.priority : Number.MAX_SAFE_INTEGER;
-      return leftPriority - rightPriority;
-    });
+      const leftPriority = typeof left.rule.priority === 'number' ? left.rule.priority : Number.MAX_SAFE_INTEGER;
+      const rightPriority = typeof right.rule.priority === 'number' ? right.rule.priority : Number.MAX_SAFE_INTEGER;
+      return leftPriority - rightPriority || left.index - right.index;
+    })
+    .map(entry => entry.rule);
 
   let defaultStyleId: string | undefined;
   for (const rule of prioritizedRules) {

@@ -256,9 +256,10 @@ export function buildSegmentPrompt(
 }
 
 export function planClipDurations(audioDurationSecs: number, targetDurationSecs = audioDurationSecs): Array<5 | 10> {
-  const target = Math.max(5, Math.min(MAX_REEL_SECS, Math.ceil(Math.max(audioDurationSecs, targetDurationSecs))));
+  const requestedDuration = Math.max(audioDurationSecs, targetDurationSecs);
+  const clampedTargetDuration = Math.max(5, Math.min(MAX_REEL_SECS, Math.ceil(requestedDuration)));
   const durations: Array<5 | 10> = [];
-  let remaining = target;
+  let remaining = clampedTargetDuration;
 
   while (remaining > 0) {
     if (remaining > 10) {
@@ -661,7 +662,8 @@ async function main(): Promise<void> {
     appendFileSync(process.env.GITHUB_ENV, `REEL_VIDEO_URL=${publicUrl}\n`);
     appendFileSync(process.env.GITHUB_ENV, `REEL_RESOLVED_PLAN_PATH=${resolvedPlanPath}\n`);
     if (plan.instagram.caption) {
-      appendFileSync(process.env.GITHUB_ENV, `REEL_CAPTION<<__NDCH_REEL_CAPTION__\n${plan.instagram.caption}\n__NDCH_REEL_CAPTION__\n`);
+      const captionEnvDelimiter = 'EOF_REEL_CAPTION';
+      appendFileSync(process.env.GITHUB_ENV, `REEL_CAPTION<<${captionEnvDelimiter}\n${plan.instagram.caption}\n${captionEnvDelimiter}\n`);
     }
     if (plan.instagram.coverFrameOffsetMs !== undefined) {
       appendFileSync(process.env.GITHUB_ENV, `REEL_THUMB_OFFSET_MS=${plan.instagram.coverFrameOffsetMs}\n`);
