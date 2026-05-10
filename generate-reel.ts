@@ -123,7 +123,7 @@ function normalizeWhitespace(text: string): string {
 }
 
 function countWords(text: string): number {
-  const matches = normalizeWhitespace(text).match(/\b[\p{L}\p{N}'’/-]+\b/gu);
+  const matches = normalizeWhitespace(text).match(/\b[\p{L}\p{N}'’/\-]+\b/gu);
   return matches?.length ?? 0;
 }
 
