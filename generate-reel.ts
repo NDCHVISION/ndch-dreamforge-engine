@@ -204,32 +204,6 @@ function splitNarrationUnits(script: string): string[] {
   }));
 }
 
-function ensureMinimumUnitCount(units: string[], minimumCount: number): string[] {
-  const expanded = [...units];
-
-  while (expanded.length < minimumCount) {
-    let splitIndex = -1;
-    let longestWordCount = 0;
-
-    for (let i = 0; i < expanded.length; i++) {
-      const wordCount = countWords(expanded[i]);
-      if (wordCount > longestWordCount && wordCount > 1) {
-        longestWordCount = wordCount;
-        splitIndex = i;
-      }
-    }
-
-    if (splitIndex === -1) break;
-
-    const pieces = splitWordsIntoChunks(expanded[splitIndex], 2);
-    if (pieces.length < 2) break;
-
-    expanded.splice(splitIndex, 1, ...pieces);
-  }
-
-  return expanded;
-}
-
 function limitWords(text: string, maxWords: number): string {
   const words = normalizeWhitespace(text).split(' ').filter(Boolean);
   if (words.length <= maxWords) return words.join(' ');
@@ -285,6 +259,37 @@ interface NarrationUnit {
   promptText?: string;
 }
 
+function ensureMinimumUnitCount(units: NarrationUnit[], minimumCount: number): NarrationUnit[] {
+  const expanded = [...units];
+
+  while (expanded.length < minimumCount) {
+    let splitIndex = -1;
+    let longestWordCount = 0;
+
+    for (let i = 0; i < expanded.length; i++) {
+      const wordCount = countWords(expanded[i].text);
+      if (wordCount > longestWordCount && wordCount > 1) {
+        longestWordCount = wordCount;
+        splitIndex = i;
+      }
+    }
+
+    if (splitIndex === -1) break;
+
+    const unitToSplit = expanded[splitIndex];
+    const pieces = splitWordsIntoChunks(unitToSplit.text, 2);
+    if (pieces.length < 2) break;
+
+    expanded.splice(
+      splitIndex,
+      1,
+      ...pieces.map(text => ({ text, promptText: unitToSplit.promptText }))
+    );
+  }
+
+  return expanded;
+}
+
 export function planNarrationScenes(
   script: string,
   basePrompt: string,
@@ -308,12 +313,7 @@ export function planNarrationScenes(
   const seededUnits = explicitUnits && explicitUnits.length > 0
     ? explicitUnits
     : splitNarrationUnits(normalizedScript).map(text => ({ text }));
-  const units = ensureMinimumUnitCount(seededUnits.map(unit => unit.text), totalClips)
-    .map<NarrationUnit>((text, index) => {
-      const original = seededUnits[index];
-      if (original?.text === text) return original;
-      return { text };
-    });
+  const units = ensureMinimumUnitCount(seededUnits, totalClips);
   const segments: ReelScenePlan[] = [];
   let unitIndex = 0;
 
