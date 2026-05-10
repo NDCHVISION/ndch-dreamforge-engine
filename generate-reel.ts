@@ -261,7 +261,7 @@ export function planNarrationScenes(script: string, basePrompt: string, audioDur
   const clipDurations = planClipDurations(audioDurationSecs);
   const normalizedScript = normalizeWhitespace(script);
 
-  if (!normalizedScript) throw new Error('REEL_SCRIPT must not be empty');
+  if (!normalizedScript) throw new Error('Narration script must contain non-whitespace content');
 
   const totalWords = countWords(normalizedScript);
   const secondsPerWord = totalWords > 0 ? audioDurationSecs / totalWords : 0;
@@ -281,6 +281,7 @@ export function planNarrationScenes(script: string, basePrompt: string, audioDur
       const unit = units[unitIndex];
       const unitWordCount = countWords(unit);
       const projectedWordCount = segmentWordCount + unitWordCount;
+      const currentNarrationSecs = segmentWordCount * secondsPerWord;
       const projectedSecs = projectedWordCount * secondsPerWord;
       const remainingUnits = units.length - (unitIndex + 1);
       const remainingClips = totalClips - (clipIndex + 1);
@@ -294,14 +295,14 @@ export function planNarrationScenes(script: string, basePrompt: string, audioDur
       }
 
       if (mustLeaveUnitsForRemainingClips) break;
-      if (segmentWordCount * secondsPerWord < minimumNarrationSecs) {
+      if (currentNarrationSecs < minimumNarrationSecs) {
         segmentUnits.push(unit);
         segmentWordCount = projectedWordCount;
         unitIndex++;
         continue;
       }
 
-      const currentGap = Math.abs((segmentWordCount * secondsPerWord) - targetNarrationSecs);
+      const currentGap = Math.abs(currentNarrationSecs - targetNarrationSecs);
       const projectedGap = Math.abs(projectedSecs - targetNarrationSecs);
 
       if (projectedSecs <= targetNarrationSecs || projectedGap <= currentGap) {
@@ -579,8 +580,7 @@ async function main(): Promise<void> {
   console.log(`✓  Reel ready → ${publicUrl}`);
 }
 
-const entryPath = process.argv[1] ? resolve(process.argv[1]) : '';
-if (entryPath === resolve(fileURLToPath(import.meta.url))) {
+if (process.argv[1] && resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url))) {
   main().catch(err => {
     console.error('');
     console.error('✗  Reel generation failed:', err instanceof Error ? err.message : String(err));
