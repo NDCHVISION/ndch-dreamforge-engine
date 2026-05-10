@@ -72,7 +72,7 @@ function trimToWords(text: string, maxWords: number): string {
 }
 
 function isValidClockComponent(value: number | undefined): boolean {
-  return value === undefined || (value >= 0 && value < 60);
+  return value === undefined || (Number.isInteger(value) && value >= 0 && value < 60);
 }
 
 function parseJsonFile(path: string, label: string): JsonRecord {

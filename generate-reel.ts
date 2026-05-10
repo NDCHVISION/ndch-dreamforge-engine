@@ -667,7 +667,7 @@ async function main(): Promise<void> {
     appendFileSync(process.env.GITHUB_ENV, `REEL_VIDEO_URL=${publicUrl}\n`);
     appendFileSync(process.env.GITHUB_ENV, `REEL_RESOLVED_PLAN_PATH=${resolvedPlanPath}\n`);
     if (plan.instagram.caption) {
-      const captionEnvDelimiter = `EOF_REEL_CAPTION_${Date.now()}_${randomUUID().slice(0, 8)}`;
+      const captionEnvDelimiter = `EOF_REEL_CAPTION_${randomUUID().slice(0, 8)}`;
       appendFileSync(process.env.GITHUB_ENV, `REEL_CAPTION<<${captionEnvDelimiter}\n${plan.instagram.caption}\n${captionEnvDelimiter}\n`);
     }
     if (plan.instagram.coverFrameOffsetMs !== undefined) {
