@@ -3,17 +3,17 @@ name: Generate & Publish Instagram Reel
 on:
   workflow_dispatch:
     inputs:
+      engine_config_path:
+        description: 'Repo-relative path to the engine config JSON for JSON-driven runs'
+        required: false
+      reel_spec_path:
+        description: 'Repo-relative path to the reel spec JSON for JSON-driven runs'
+        required: false
       script:
         description: 'Voiceover script fallback when REEL_SPEC_PATH is not provided'
         required: false
       video_prompt:
         description: 'Visual prompt fallback when JSON inputs do not resolve one'
-        required: false
-      engine_config_path:
-        description: 'Optional path to global engine config JSON in the repo'
-        required: false
-      reel_spec_path:
-        description: 'Optional path to per-reel spec JSON in the repo'
         required: false
       caption:
         description: 'Instagram caption fallback (max 2200 chars, include hashtags)'
@@ -49,6 +49,23 @@ jobs:
           REEL_PROMPT:        ${{ inputs.video_prompt }}
           REEL_CAPTION:       ${{ inputs.caption }}
         run: npx tsx generate-reel.ts
+
+      - name: Surface resolved production plan
+        if: ${{ env.REEL_RESOLVED_PLAN_PATH != '' }}
+        run: |
+          echo "Resolved production plan path: $REEL_RESOLVED_PLAN_PATH"
+          echo '## Reel generation debug info' >> "$GITHUB_STEP_SUMMARY"
+          echo '' >> "$GITHUB_STEP_SUMMARY"
+          echo "- Engine config: \`${ENGINE_CONFIG_PATH:-'(env/script fallback only)'}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Reel spec: \`${REEL_SPEC_PATH:-'(env/script fallback only)'}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Resolved production plan: \`$REEL_RESOLVED_PLAN_PATH\`" >> "$GITHUB_STEP_SUMMARY"
+          echo '' >> "$GITHUB_STEP_SUMMARY"
+          echo '```json' >> "$GITHUB_STEP_SUMMARY"
+          cat "$REEL_RESOLVED_PLAN_PATH" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+        env:
+          ENGINE_CONFIG_PATH: ${{ inputs.engine_config_path }}
+          REEL_SPEC_PATH: ${{ inputs.reel_spec_path }}
 
       - name: Publish to Instagram
         env:
