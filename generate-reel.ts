@@ -34,6 +34,8 @@ import { tmpdir }                                                   from 'node:o
 import { join, resolve }                                            from 'node:path';
 import { fileURLToPath }                                            from 'node:url';
 import { resolveProductionPlan, type ResolvedNarrationSegment, type ResolvedProductionPlan } from './reel-plan.ts';
+import { requestBuffer, requestJson, requestText } from './http-client.ts';
+import { ENGINE_DEFAULTS } from './engine-defaults.ts';
 
 // ── Env ───────────────────────────────────────────────────────────────────────
 
@@ -50,14 +52,19 @@ interface RuntimeConfig {
   plan: ResolvedProductionPlan;
 }
 
-const DEFAULT_VOICE_ID           = 'C9Uh5MFptuXa176UlaXE';   // NDCH Vision cloned voice
-const DEFAULT_ELEVENLABS_MODEL   = 'eleven_multilingual_v2';
+const DEFAULT_VOICE_ID           = ENGINE_DEFAULTS.defaultVoiceId;
+const DEFAULT_ELEVENLABS_MODEL   = ENGINE_DEFAULTS.defaultModelId;
 const DEFAULT_OUTPUT_FORMAT      = 'mp3_44100_192';
 const REPO                       = 'NDCHVISION/ndch-dreamforge-engine';
 const TMP                        = tmpdir();
-const MAX_REEL_SECS              = 45;
+const MAX_REEL_SECS              = ENGINE_DEFAULTS.maxDurationSeconds;
 const RUNWAY_TIMEOUT_MS          = 300_000;
 const MUSIC_ASSET_RELATIVE_PATH  = 'assets/ambient-drone.mp3';
+const DEFAULT_HTTP_TIMEOUT_MS    = 45_000;
+const MANAGED_RELEASE_TAG        = 'reel-latest';
+const MANAGED_RELEASE_NAME       = 'NDCH Dreamforge Latest Reel';
+const MIN_RUNWAY_CONCURRENCY     = 1;
+const MAX_RUNWAY_CONCURRENCY     = 4;
 
 const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
 let runtimeConfig: RuntimeConfig | undefined;
@@ -247,29 +254,29 @@ async function generateVoiceover(): Promise<string> {
     console.log(`         speed : ${speed}`);
   }
 
-  const res = await fetch(
+  const audioBuffer = await requestBuffer(
     `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=${outputFormat}`,
     {
-      method:  'POST',
+      method: 'POST',
       headers: {
-        'xi-api-key':   elevenLabsKey,
+        'xi-api-key': elevenLabsKey,
         'Content-Type': 'application/json',
-        'Accept':       'audio/mpeg',
+        'Accept': 'audio/mpeg',
       },
       body: JSON.stringify({
-        text:     plan.script,
+        text: plan.script,
         model_id: plan.elevenLabs.modelId,
         ...(Object.keys(pureVoiceSettings).length > 0 ? { voice_settings: pureVoiceSettings } : {}),
         ...(speed !== undefined ? { speed } : {}),
       }),
+      timeoutMs: DEFAULT_HTTP_TIMEOUT_MS,
+      maxRetries: 3,
     }
   );
 
-  if (!res.ok) throw new Error(`ElevenLabs ${res.status}: ${await res.text()}`);
-
   // ── 1a: Save raw TTS output ────────────────────────────────────────────────
   const rawAudioPath = join(TMP, 'voiceover-raw.mp3');
-  writeFileSync(rawAudioPath, Buffer.from(await res.arrayBuffer()));
+  writeFileSync(rawAudioPath, audioBuffer);
   const rawDuration = getMediaDuration(rawAudioPath);
   console.log(`         raw saved: ${rawAudioPath}  (${rawDuration.toFixed(1)}s)`);
 
@@ -672,24 +679,22 @@ async function generateRunwayClip(scene: ReelScenePlan, totalClips: number): Pro
   console.log(
     `         clip ${scene.clipIndex + 1}/${totalClips}: requesting ${scene.clipDuration}s for "${limitWords(scene.narrationChunk, 14)}"`
   );
-  const createRes = await fetch('https://api.dev.runwayml.com/v1/text_to_video', {
-    method:  'POST',
+  const { id } = await requestJson<{ id: string }>('https://api.dev.runwayml.com/v1/text_to_video', {
+    method: 'POST',
     headers: {
-      'Authorization':   `Bearer ${runwayKey}`,
-      'Content-Type':    'application/json',
+      'Authorization': `Bearer ${runwayKey}`,
+      'Content-Type': 'application/json',
       'X-Runway-Version': '2024-11-06',
     },
     body: JSON.stringify({
       promptText: scene.promptText,
-      model:      'gen4.5',
-      ratio:      '720:1280',   // 9:16 — Instagram Reels portrait
-      duration:   scene.clipDuration,
+      model: 'gen4.5',
+      ratio: '720:1280',
+      duration: scene.clipDuration,
     }),
+    timeoutMs: DEFAULT_HTTP_TIMEOUT_MS,
+    maxRetries: 3,
   });
-
-  if (!createRes.ok) throw new Error(`Runway create ${createRes.status}: ${await createRes.text()}`);
-
-  const { id } = await createRes.json() as { id: string };
   console.log(`         clip ${scene.clipIndex + 1}/${totalClips}: task id ${id}`);
 
   // Poll up to 5 minutes
@@ -700,22 +705,18 @@ async function generateRunwayClip(scene: ReelScenePlan, totalClips: number): Pro
     await sleep(10_000);
     attempt++;
 
-    const pollRes = await fetch(`https://api.dev.runwayml.com/v1/tasks/${id}`, {
-      headers: {
-        'Authorization':    `Bearer ${runwayKey}`,
-        'X-Runway-Version': '2024-11-06',
-      },
-    });
-
-    if (!pollRes.ok) {
-      throw new Error(`Runway poll ${pollRes.status} for task ${id}: ${await pollRes.text()}`);
-    }
-
-    const task = await pollRes.json() as {
+    const task = await requestJson<{
       status:   string;
       output?:  string[];
       failure?: string;
-    };
+    }>(`https://api.dev.runwayml.com/v1/tasks/${id}`, {
+      headers: {
+        'Authorization': `Bearer ${runwayKey}`,
+        'X-Runway-Version': '2024-11-06',
+      },
+      timeoutMs: DEFAULT_HTTP_TIMEOUT_MS,
+      maxRetries: 3,
+    });
 
     console.log(`         clip ${scene.clipIndex + 1}/${totalClips} [${attempt}] ${task.status}`);
 
@@ -726,9 +727,11 @@ async function generateRunwayClip(scene: ReelScenePlan, totalClips: number): Pro
       );
 
       const videoPath = join(TMP, `runway-${String(scene.clipIndex + 1).padStart(2, '0')}.mp4`);
-      const dl        = await fetch(videoUrl);
-      if (!dl.ok) throw new Error(`Runway download ${dl.status} for task ${id}: ${await dl.text()}`);
-      writeFileSync(videoPath, Buffer.from(await dl.arrayBuffer()));
+      const clipBuffer = await requestBuffer(videoUrl, {
+        timeoutMs: DEFAULT_HTTP_TIMEOUT_MS,
+        maxRetries: 3,
+      });
+      writeFileSync(videoPath, clipBuffer);
       console.log(`         clip ${scene.clipIndex + 1}/${totalClips}: saved ${videoPath}`);
       return videoPath;
     }
@@ -779,6 +782,43 @@ function stitchVideoClips(clipPaths: string[]): string {
   return stitchedPath;
 }
 
+function parsePositiveIntEnv(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (!raw) return fallback;
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value <= 0) {
+    throw new Error(`Invalid positive integer env var ${name}: ${raw}`);
+  }
+  return value;
+}
+
+async function generateRunwayClipsBounded(scenePlan: ReelScenePlan[]): Promise<string[]> {
+  const requestedConcurrency = parsePositiveIntEnv('REEL_RUNWAY_CONCURRENCY', 2);
+  const concurrency = Math.max(MIN_RUNWAY_CONCURRENCY, Math.min(MAX_RUNWAY_CONCURRENCY, requestedConcurrency));
+  const clipPaths = new Array<string>(scenePlan.length);
+  let nextIndex = 0;
+
+  console.log(`         runway concurrency: ${concurrency}`);
+
+  async function worker(): Promise<void> {
+    while (true) {
+      const currentIndex = nextIndex;
+      nextIndex += 1;
+      if (currentIndex >= scenePlan.length) return;
+      const scene = scenePlan[currentIndex];
+      clipPaths[currentIndex] = await generateRunwayClip(scene, scenePlan.length);
+    }
+  }
+
+  const workers = Array.from(
+    { length: Math.min(concurrency, scenePlan.length) },
+    () => worker()
+  );
+  await Promise.all(workers);
+
+  return clipPaths;
+}
+
 async function generateVideo(audioDurationSecs: number): Promise<{ videoPath: string; sceneTimeline: SceneAllocationEntry[] }> {
   console.log('  [2/4] Generating video via Runway Gen-4 Turbo…');
   const { plan } = getConfig();
@@ -823,11 +863,7 @@ async function generateVideo(audioDurationSecs: number): Promise<{ videoPath: st
     console.log(`           prompt   : ${entry.promptText}`);
   });
 
-  const clipPaths: string[] = [];
-  for (const scene of scenePlan) {
-    const clipPath = await generateRunwayClip(scene, scenePlan.length);
-    clipPaths.push(clipPath);
-  }
+  const clipPaths = await generateRunwayClipsBounded(scenePlan);
 
   const stitchedPath = stitchVideoClips(clipPaths);
   const stitchedDuration = getMediaDuration(stitchedPath);
@@ -860,56 +896,184 @@ function mergeAudioVideo(audioPath: string, videoPath: string): string {
 
 // ── Step 4: GitHub Release upload ─────────────────────────────────────────────
 
-async function uploadToGitHubRelease(videoPath: string): Promise<string> {
-  console.log('  [4/4] Uploading to GitHub Release…');
-  const { githubToken } = getConfig();
+interface GitHubReleaseAsset {
+  id: number;
+  name: string;
+  browser_download_url: string;
+}
 
-  const tag  = `reel-${Date.now()}`;
-  const name = `Reel ${new Date().toISOString().slice(0, 10)}`;
+interface GitHubRelease {
+  id: number;
+  upload_url: string;
+  assets: GitHubReleaseAsset[];
+}
 
-  // Create release
-  const releaseRes = await fetch(
-    `https://api.github.com/repos/${REPO}/releases`,
+function githubHeaders(token: string): Record<string, string> {
+  return {
+    'Authorization': `token ${token}`,
+    'Content-Type': 'application/json',
+    'Accept': 'application/vnd.github.v3+json',
+  };
+}
+
+async function uploadReleaseAsset(
+  release: GitHubRelease,
+  token: string,
+  assetName: string,
+  contentType: string,
+  content: Buffer
+): Promise<string> {
+  const existing = release.assets.find(asset => asset.name === assetName);
+  if (existing) {
+    await requestText(
+      `https://api.github.com/repos/${REPO}/releases/assets/${existing.id}`,
+      {
+        method: 'DELETE',
+        headers: githubHeaders(token),
+        timeoutMs: DEFAULT_HTTP_TIMEOUT_MS,
+        maxRetries: 3,
+      }
+    );
+  }
+
+  const uploadUrl = release.upload_url.replace('{?name,label}', `?name=${encodeURIComponent(assetName)}`);
+  const uploaded = await requestJson<GitHubReleaseAsset>(uploadUrl, {
+    method: 'POST',
+    headers: {
+      'Authorization': `token ${token}`,
+      'Content-Type': contentType,
+      'Accept': 'application/vnd.github.v3+json',
+    },
+    body: content,
+    timeoutMs: DEFAULT_HTTP_TIMEOUT_MS,
+    maxRetries: 3,
+  });
+  return uploaded.browser_download_url;
+}
+
+async function getOrCreateManagedRelease(token: string): Promise<GitHubRelease> {
+  const releases = await requestJson<Array<GitHubRelease & { tag_name: string }>>(
+    `https://api.github.com/repos/${REPO}/releases?per_page=30`,
     {
-      method:  'POST',
-      headers: {
-        'Authorization': `token ${githubToken}`,
-        'Content-Type':  'application/json',
-        'Accept':        'application/vnd.github.v3+json',
-      },
-      body: JSON.stringify({
-        tag_name:   tag,
-        name,
-        body:       `Auto-generated Instagram Reel — ${new Date().toUTCString()}`,
-        draft:      false,
-        prerelease: true,
-      }),
+      headers: githubHeaders(token),
+      timeoutMs: DEFAULT_HTTP_TIMEOUT_MS,
+      maxRetries: 3,
     }
   );
 
-  if (!releaseRes.ok) throw new Error(`GitHub release create ${releaseRes.status}: ${await releaseRes.text()}`);
+  const existing = releases.find(release => release.tag_name === MANAGED_RELEASE_TAG);
+  if (existing) return existing;
 
-  const release = await releaseRes.json() as { upload_url: string };
-
-  // Upload video asset
-  const uploadUrl  = release.upload_url.replace('{?name,label}', '?name=reel.mp4');
-  const videoBuffer = readFileSync(videoPath);
-
-  const uploadRes = await fetch(uploadUrl, {
-    method:  'POST',
-    headers: {
-      'Authorization': `token ${githubToken}`,
-      'Content-Type':  'video/mp4',
-      'Accept':        'application/vnd.github.v3+json',
-    },
-    body: videoBuffer,
+  return requestJson<GitHubRelease>(`https://api.github.com/repos/${REPO}/releases`, {
+    method: 'POST',
+    headers: githubHeaders(token),
+    body: JSON.stringify({
+      tag_name: MANAGED_RELEASE_TAG,
+      name: MANAGED_RELEASE_NAME,
+      body: 'Managed prerelease for latest NDCH Dreamforge artifacts',
+      draft: false,
+      prerelease: true,
+    }),
+    timeoutMs: DEFAULT_HTTP_TIMEOUT_MS,
+    maxRetries: 3,
   });
+}
 
-  if (!uploadRes.ok) throw new Error(`GitHub upload ${uploadRes.status}: ${await uploadRes.text()}`);
+async function uploadToGitHubRelease(videoPath: string, subtitlePath?: string): Promise<{ videoUrl: string; subtitleUrl?: string }> {
+  console.log('  [4/4] Uploading to GitHub Release…');
+  const { githubToken } = getConfig();
 
-  const asset = await uploadRes.json() as { browser_download_url: string };
-  console.log(`         url: ${asset.browser_download_url}`);
-  return asset.browser_download_url;
+  const release = await getOrCreateManagedRelease(githubToken);
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const videoUrl = await uploadReleaseAsset(
+    release,
+    githubToken,
+    `reel-${timestamp}.mp4`,
+    'video/mp4',
+    readFileSync(videoPath)
+  );
+
+  let subtitleUrl: string | undefined;
+  if (subtitlePath) {
+    subtitleUrl = await uploadReleaseAsset(
+      release,
+      githubToken,
+      `reel-${timestamp}.srt`,
+      'application/x-subrip',
+      readFileSync(subtitlePath)
+    );
+  }
+
+  console.log(`         url: ${videoUrl}`);
+  if (subtitleUrl) console.log(`         subtitles: ${subtitleUrl}`);
+  return { videoUrl, subtitleUrl };
+}
+
+interface SubtitleCue {
+  startSeconds: number;
+  endSeconds: number;
+  text: string;
+}
+
+function formatSrtTimestamp(seconds: number, contextLabel: string): string {
+  if (seconds < 0) {
+    throw new Error(`Subtitle timestamp cannot be negative (${contextLabel}): ${seconds}`);
+  }
+  const totalMillis = Math.round(seconds * 1000);
+  const hrs = Math.floor(totalMillis / 3_600_000);
+  const mins = Math.floor((totalMillis % 3_600_000) / 60_000);
+  const secs = Math.floor((totalMillis % 60_000) / 1000);
+  const millis = totalMillis % 1000;
+  return `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')},${String(millis).padStart(3, '0')}`;
+}
+
+function buildSubtitleCues(plan: ResolvedProductionPlan, sceneTimeline: SceneAllocationEntry[]): SubtitleCue[] {
+  const cuesFromSegments = plan.narrationSegments
+    .map(segment => ({
+      startSeconds: segment.timestampStartSeconds,
+      endSeconds: segment.timestampEndSeconds,
+      text: normalizeWhitespace(segment.text),
+    }))
+    .filter((cue): cue is SubtitleCue =>
+      cue.startSeconds !== undefined &&
+      cue.endSeconds !== undefined &&
+      cue.endSeconds > cue.startSeconds &&
+      cue.text.length > 0
+    );
+  if (cuesFromSegments.length > 0) return cuesFromSegments;
+
+  let cursor = 0;
+  return sceneTimeline
+    .map(entry => {
+      const duration = entry.intendedNarrationDurationSecs ?? entry.estimatedNarrationSecs;
+      const startSeconds = cursor;
+      const endSeconds = cursor + Math.max(0.8, duration);
+      cursor = endSeconds;
+      return {
+        startSeconds,
+        endSeconds,
+        text: normalizeWhitespace(entry.narrationText),
+      } satisfies SubtitleCue;
+    })
+    .filter(cue => cue.text.length > 0);
+}
+
+function writeSubtitleSidecar(plan: ResolvedProductionPlan, sceneTimeline: SceneAllocationEntry[]): string | undefined {
+  if (!plan.subtitles || typeof plan.subtitles !== 'object') return undefined;
+  if ((plan.subtitles as Record<string, unknown>).enabled === false) return undefined;
+
+  const cues = buildSubtitleCues(plan, sceneTimeline);
+  if (cues.length === 0) return undefined;
+
+  const subtitlePath = join(TMP, `reel-subtitles-${Date.now()}.srt`);
+  const srt = cues
+    .map((cue, index) => (
+      `${index + 1}\n${formatSrtTimestamp(cue.startSeconds, `cue ${index + 1} start`)} --> ${formatSrtTimestamp(cue.endSeconds, `cue ${index + 1} end`)}\n${cue.text}\n`
+    ))
+    .join('\n');
+  writeFileSync(subtitlePath, srt);
+  console.log(`  subtitles     : ${subtitlePath}`);
+  return subtitlePath;
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
@@ -935,7 +1099,8 @@ async function main(): Promise<void> {
 
   const { videoPath, sceneTimeline } = await generateVideo(durationSecs);
   const finalPath = mergeAudioVideo(audioPath, videoPath);
-  const publicUrl = await uploadToGitHubRelease(finalPath);
+  const subtitlePath = writeSubtitleSidecar(plan, sceneTimeline);
+  const { videoUrl: publicUrl, subtitleUrl } = await uploadToGitHubRelease(finalPath, subtitlePath);
 
   // Write resolved plan artifact (including scene timeline) after generation completes.
   const resolvedPlanPath = join(TMP, `resolved-plan-${Date.now()}.json`);
@@ -950,15 +1115,23 @@ async function main(): Promise<void> {
     targetDurationSeconds: plan.targetDurationSeconds,
     elevenLabs: plan.elevenLabs,
     instagram: plan.instagram,
-    subtitles: plan.subtitles,
-    sceneTimeline,
-  }, null, 2));
+     subtitles: plan.subtitles,
+     subtitlePath,
+     subtitleUrl,
+     sceneTimeline,
+   }, null, 2));
   console.log(`  resolved plan : ${resolvedPlanPath}`);
 
   // Expose to subsequent Actions steps
   if (process.env.GITHUB_ENV) {
     appendFileSync(process.env.GITHUB_ENV, `REEL_VIDEO_URL=${publicUrl}\n`);
     appendFileSync(process.env.GITHUB_ENV, `REEL_RESOLVED_PLAN_PATH=${resolvedPlanPath}\n`);
+    if (subtitlePath) {
+      appendFileSync(process.env.GITHUB_ENV, `REEL_SUBTITLE_PATH=${subtitlePath}\n`);
+    }
+    if (subtitleUrl) {
+      appendFileSync(process.env.GITHUB_ENV, `REEL_SUBTITLE_URL=${subtitleUrl}\n`);
+    }
     if (plan.instagram.caption) {
       const captionEnvDelimiter = `EOF_REEL_CAPTION_${randomUUID().slice(0, 8)}`;
       appendFileSync(process.env.GITHUB_ENV, `REEL_CAPTION<<${captionEnvDelimiter}\n${plan.instagram.caption}\n${captionEnvDelimiter}\n`);
