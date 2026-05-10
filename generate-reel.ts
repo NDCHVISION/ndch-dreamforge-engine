@@ -43,11 +43,19 @@ const RUNWAY_TIMEOUT_MS = 300_000;
 const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
 
 function getMediaDuration(path: string): number {
-  return parseFloat(
-    execSync(`ffprobe -v error -show_entries format=duration -of csv=p=0 "${path}"`)
-      .toString()
-      .trim()
-  );
+  try {
+    const duration = parseFloat(
+      execSync(`ffprobe -v error -show_entries format=duration -of csv=p=0 "${path}"`)
+        .toString()
+        .trim()
+    );
+    if (!Number.isFinite(duration) || duration <= 0) {
+      throw new Error(`invalid ffprobe duration: ${duration}`);
+    }
+    return duration;
+  } catch (err) {
+    throw new Error(`Failed to read media duration for ${path}: ${(err as Error).message}`);
+  }
 }
 
 // ── Step 1: ElevenLabs voiceover ──────────────────────────────────────────────
@@ -175,8 +183,9 @@ async function generateRunwayClip(duration: 5 | 10, clipIndex: number, totalClip
 function stitchVideoClips(clipPaths: string[]): string {
   if (clipPaths.length === 0) throw new Error('No Runway clips were generated for stitching');
 
-  const listPath = join(TMP, `runway-concat-${Date.now()}.txt`);
-  const stitchedPath = join(TMP, `runway-stitched-${Date.now()}.mp4`);
+  const uniqueId = `${Date.now()}-${process.pid}-${Math.random().toString(36).slice(2, 8)}`;
+  const listPath = join(TMP, `runway-concat-${uniqueId}.txt`);
+  const stitchedPath = join(TMP, `runway-stitched-${uniqueId}.mp4`);
   const listFile = clipPaths
     .map(path => `file '${path.replace(/'/g, `'\\''`)}'`)
     .join('\n');
@@ -184,10 +193,14 @@ function stitchVideoClips(clipPaths: string[]): string {
   writeFileSync(listPath, `${listFile}\n`);
   console.log('         stitching clips with ffmpeg concat…');
 
-  execSync(
-    `ffmpeg -y -f concat -safe 0 -i "${listPath}" -c copy "${stitchedPath}"`,
-    { stdio: 'inherit' }
-  );
+  try {
+    execSync(
+      `ffmpeg -y -f concat -safe 0 -i "${listPath}" -c copy "${stitchedPath}"`,
+      { stdio: 'inherit' }
+    );
+  } catch (err) {
+    throw new Error(`Failed to stitch Runway clips with ffmpeg: ${(err as Error).message}`);
+  }
 
   console.log(`         stitched: ${stitchedPath}`);
   return stitchedPath;
@@ -222,11 +235,15 @@ function mergeAudioVideo(audioPath: string, videoPath: string): string {
   const outputPath = join(TMP, 'final.mp4');
 
   // -shortest trims output to whichever stream ends first for clean overlap.
-  execSync(
-    `ffmpeg -y -i "${videoPath}" -i "${audioPath}" ` +
-    `-map 0:v:0 -map 1:a:0 -c:v copy -c:a aac -b:a 192k -shortest "${outputPath}"`,
-    { stdio: 'inherit' }
-  );
+  try {
+    execSync(
+      `ffmpeg -y -i "${videoPath}" -i "${audioPath}" ` +
+      `-map 0:v:0 -map 1:a:0 -c:v copy -c:a aac -b:a 192k -shortest "${outputPath}"`,
+      { stdio: 'inherit' }
+    );
+  } catch (err) {
+    throw new Error(`Failed to merge audio/video with ffmpeg: ${(err as Error).message}`);
+  }
 
   const finalDuration = getMediaDuration(outputPath);
   console.log(`         merged: ${outputPath} (${finalDuration.toFixed(1)}s)`);
