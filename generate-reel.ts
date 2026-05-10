@@ -284,7 +284,7 @@ function normalizeWhitespace(text: string): string {
 }
 
 function countWords(text: string): number {
-  const matches = normalizeWhitespace(text).match(/\b[\p{L}\p{N}''/-]+\b/gu);
+  const matches = normalizeWhitespace(text).match(/\b[\p{L}\p{N}'/-]+\b/gu);
   return matches?.length ?? 0;
 }
 
@@ -1133,8 +1133,12 @@ async function main(): Promise<void> {
 
 if (process.argv[1] && resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url))) {
   main().catch(err => {
-        console.error('');
-    console.error('✗  Reel generation failed:', err instanceof Error ? err.message : String(err));
+    console.error('');
+    if (err instanceof Error) {
+      console.error('✗  Reel generation failed. See logs above for the failing step.');
+    } else {
+      console.error('✗  Reel generation failed.');
+    }
     process.exit(1);
   });
 }
