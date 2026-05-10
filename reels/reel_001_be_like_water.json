@@ -1,0 +1,174 @@
+{
+  "reel_id": "reel_001_be_like_water",
+  "engine_version": "1.0.0",
+  "series": "Timeless Wisdom",
+  "created_at": "2026-05-10",
+  "status": "ready_for_production",
+  "concept": "Be like water — flow, adapt, and overcome.",
+  "quote": {
+    "text": "Be like water, my friend.",
+    "attribution": "Bruce Lee",
+    "theme": "adaptability, resilience, flow"
+  },
+  "format": {
+    "target_duration_seconds": 38,
+    "aspect_ratio": "9:16",
+    "resolution": "720x1280",
+    "platform": "instagram_reels"
+  },
+  "style_selection": {
+    "chosen_style": "style_1_fractal",
+    "rationale": "Fractal gold visuals reinforce the fluid, cosmic quality of the water metaphor."
+  },
+  "visual_prompt": {
+    "style_id": "style_1_fractal",
+    "primary_prompt": "A surreal looping reel — liquid gold water fractal geometry, sacred architecture dissolving into flowing rivers of light, slow orbital camera drift, hyper-detailed 4K cinematic motion, no text overlays, spiritual transcendent aesthetic.",
+    "negative_prompt": "text, watermarks, logos, low quality, blurry, static, harsh cuts",
+    "color_palette": ["liquid gold", "deep navy", "iridescent white", "shadow indigo"],
+    "mood": "transcendent, meditative, powerful"
+  },
+  "voiceover": {
+    "script": {
+      "full_text": "Empty your mind. Be formless, shapeless — like water. Water does not resist. It flows around obstacles, over them, through them. If you put water into a cup, it becomes the cup. If you put water into a bottle, it becomes the bottle. Be water, my friend. Adapt. Flow. Rise.",
+      "segments": [
+        {
+          "segment_id": 1,
+          "text": "Empty your mind.",
+          "purpose": "hook — immediate pattern interrupt",
+          "visual_prompt": "Black void dissolving into a single drop of liquid gold falling in slow motion, fractal ripple expanding outward.",
+          "timestamp_start": "0:00",
+          "timestamp_end": "0:03"
+        },
+        {
+          "segment_id": 2,
+          "text": "Be formless, shapeless — like water.",
+          "purpose": "introduce concept — frame the metaphor",
+          "visual_prompt": "Liquid gold morphing between shapes — sphere to river to mist — sacred geometry dissolving and reforming.",
+          "timestamp_start": "0:03",
+          "timestamp_end": "0:09"
+        },
+        {
+          "segment_id": 3,
+          "text": "Water does not resist. It flows around obstacles, over them, through them.",
+          "purpose": "expand metaphor — teach adaptability",
+          "visual_prompt": "Cinematic slow-motion river splitting around a dark monolith rock, gold light refracting through water surface.",
+          "timestamp_start": "0:09",
+          "timestamp_end": "0:20"
+        },
+        {
+          "segment_id": 4,
+          "text": "If you put water into a cup, it becomes the cup. If you put water into a bottle, it becomes the bottle.",
+          "purpose": "concrete illustration — deepen metaphor",
+          "visual_prompt": "Abstract visualization of liquid gold pouring and perfectly filling geometric shapes — cube, sphere, spiral — each glowing from within.",
+          "timestamp_start": "0:20",
+          "timestamp_end": "0:30"
+        },
+        {
+          "segment_id": 5,
+          "text": "Be water, my friend. Adapt. Flow. Rise.",
+          "purpose": "climax and call to action — leave them with the feeling",
+          "visual_prompt": "A river of liquid gold cresting over a mountain, catching dawn light, vast and unstoppable, camera pulling back to reveal cosmic scale.",
+          "timestamp_start": "0:30",
+          "timestamp_end": "0:38"
+        }
+      ]
+    },
+    "elevenLabs_config": {
+      "voice_id": "pNInz6obpgDQGcFmaJgB",
+      "voice_name": "Adam",
+      "model_id": "eleven_turbo_v2_5",
+      "voice_settings": {
+        "stability": 0.42,
+        "similarity_boost": 0.80,
+        "style": 0.25,
+        "use_speaker_boost": true,
+        "speed": 0.95
+      },
+      "delivery_notes": "Calm, measured authority. Each sentence lands with weight. Slight pause between major lines. Not urgent — inevitable."
+    }
+  },
+  "subtitle_config": {
+    "enabled": true,
+    "font": "Montserrat-Bold",
+    "font_size": 56,
+    "font_color": "#FFFFFF",
+    "stroke_color": "#000000",
+    "stroke_width": 3,
+    "position": "bottom_center",
+    "margin_bottom": 120,
+    "word_highlight_color": "#FFD700",
+    "animation": "fade_in",
+    "max_words_per_line": 4
+  },
+  "music_config": {
+    "enabled": true,
+    "style": "ambient_cinematic",
+    "tempo": "slow",
+    "key_mood": "transcendent",
+    "suggested_tracks": [
+      "Healing frequency 432Hz ambient",
+      "Slow cinematic orchestral swell",
+      "Minimal piano with reverb"
+    ],
+    "volume_ducking_under_voiceover": true,
+    "fade_in_seconds": 1.5,
+    "fade_out_seconds": 2.0
+  },
+  "instagram_config": {
+    "caption": {
+      "full_caption": "Be like water. 💧\n\nFlow around the obstacles. Adapt to whatever container life gives you. And when the pressure builds — rise.\n\nBruce Lee didn't just teach martial arts. He taught the philosophy of motion.\n\nSave this for the days you feel stuck. 🔖\n\n#motivation #mindset #brucelee #belikewater #resilience #flow #adaptation #wisdom #viral #reels #inspiration #growth #philosophy #lifeadvice #success"
+    },
+    "cover_frame_timestamp_seconds": 3,
+    "share_to_feed": true,
+    "tags": [
+      "motivation",
+      "mindset",
+      "brucelee",
+      "belikewater",
+      "resilience",
+      "flow",
+      "adaptation",
+      "wisdom",
+      "viral",
+      "reels",
+      "inspiration",
+      "growth",
+      "philosophy",
+      "lifeadvice",
+      "success"
+    ]
+  },
+  "production_checklist": [
+    { "step": "voiceover_generated", "status": "pending" },
+    { "step": "video_clips_generated", "status": "pending" },
+    { "step": "clips_merged", "status": "pending" },
+    { "step": "subtitles_added", "status": "pending" },
+    { "step": "music_mixed", "status": "pending" },
+    { "step": "cover_frame_set", "status": "pending" },
+    { "step": "caption_reviewed", "status": "pending" },
+    { "step": "published_to_instagram", "status": "pending" }
+  ],
+  "next_reel_suggestions": [
+    {
+      "reel_id": "reel_002_iron_sharpens_iron",
+      "concept": "Iron sharpens iron — you become who you surround yourself with.",
+      "style": "style_2_identity",
+      "quote": "Iron sharpens iron, and one man sharpens another.",
+      "attribution": "Proverbs 27:17"
+    },
+    {
+      "reel_id": "reel_003_fall_seven_rise_eight",
+      "concept": "Fall seven times, rise eight — the Japanese art of resilience.",
+      "style": "style_1_fractal",
+      "quote": "Fall seven times, stand up eight.",
+      "attribution": "Japanese Proverb"
+    },
+    {
+      "reel_id": "reel_004_discipline_over_motivation",
+      "concept": "Stop waiting to feel motivated. Discipline is the bridge.",
+      "style": "style_3_hud",
+      "quote": "Discipline is doing what needs to be done, even when you don't want to do it.",
+      "attribution": "Unknown"
+    }
+  ]
+}
