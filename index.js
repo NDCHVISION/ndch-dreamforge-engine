@@ -37,6 +37,19 @@ const DURATION_NOTES = {
   60: '60s — deeper storytelling with lower completion rates.'
 };
 
+function toNumber(value) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function escapeHtml(value) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 async function loadEngineConfig() {
   try {
     const res = await fetch('./engine/viral-reel-engine.json');
@@ -60,7 +73,7 @@ async function loadEngineConfig() {
       }
     }
 
-    const durationDefault = Number(engine?.virality_data?.duration_strategy?.engine_default_seconds);
+    const durationDefault = toNumber(engine?.virality_data?.duration_strategy?.engine_default_seconds);
     if (Number.isInteger(durationDefault) && durationDefault > 0) {
       if (!DURATION_NOTES[durationDefault]) {
         DURATION_NOTES[durationDefault] = `${durationDefault}s — engine default duration.`;
@@ -233,10 +246,10 @@ function renderSuggestions() {
   ];
 
   document.getElementById('suggestions').innerHTML = nextIdeas.map(item => `
-    <div class="suggestion" data-concept="${item.concept.replace(/"/g, '&quot;')}">
+    <div class="suggestion" data-concept="${escapeHtml(item.concept)}">
       <div>
-        <div class="sug-text">${item.concept}</div>
-        <div class="sug-style">${item.style}</div>
+        <div class="sug-text">${escapeHtml(item.concept)}</div>
+        <div class="sug-style">${escapeHtml(item.style)}</div>
       </div>
       <div class="sug-arrow">→</div>
     </div>
