@@ -356,7 +356,21 @@ test('buildSegmentPrompt uses opening-focused cinematic direction', () => {
   );
 
   assert.match(prompt, /Opening scene/);
-  assert.match(prompt, /Bold hook/);
+  assert.match(prompt, /Hook instantly with a striking first image/);
+  assert.match(prompt, /Composition: Bold composition/);
+});
+
+test('buildSegmentPrompt uses middle progression and motion direction', () => {
+  const prompt = buildSegmentPrompt(
+    'Dark cinematic city under stormlight',
+    'We adapt with purpose.',
+    1,
+    3
+  );
+
+  assert.match(prompt, /Scene 2 of 3/);
+  assert.match(prompt, /Advance the narrative with visible progression/);
+  assert.match(prompt, /Motion: Cinematic tracking\/orbit\/parallax movement/);
 });
 
 test('buildSegmentPrompt uses closing-focused cinematic direction', () => {
@@ -368,7 +382,33 @@ test('buildSegmentPrompt uses closing-focused cinematic direction', () => {
   );
 
   assert.match(prompt, /Closing scene/);
-  assert.match(prompt, /Conclusive final beat/);
+  assert.match(prompt, /resolved final image/);
+  assert.match(prompt, /Simplified final tableau/);
+});
+
+test('buildSegmentPrompt stays under runway prompt limit', () => {
+  // Repeat enough times to force anchor truncation so we verify the hard 1000-char cap.
+  const prompt = buildSegmentPrompt(
+    'Hyper-detailed neon megacity skyline '.repeat(80),
+    'A procession of silhouetted riders crossing a floating bridge at dusk.',
+    0,
+    3
+  );
+
+  assert.ok(prompt.length <= 1000);
+});
+
+test('buildSegmentPrompt compacts visual focus by trimming weak lead-ins and filler words', () => {
+  const prompt = buildSegmentPrompt(
+    'Cinematic dreamscape with impossible architecture',
+    'Narration fallback text',
+    0,
+    2,
+    'In this scene we see just really a lone astronaut framed against a burning horizon with shattered satellites.'
+  );
+
+  assert.match(prompt, /Visual focus: .*lone astronaut.*burning horizon.*shattered satellites/i);
+  assert.doesNotMatch(prompt, /Visual focus: In this scene we see/i);
 });
 
 test('planNarrationScenes preserves short punchy opening line as its own scene when possible', () => {
