@@ -128,12 +128,12 @@ function looksDeclarativeClosingLine(text: string): boolean {
 export function mergeTinyUnits(units: string[]): string[] {
   const merged: string[] = [];
 
-  for (let index = 0; index < units.length; index++) {
-    const unit = units[index];
+  for (let unitIndex = 0; unitIndex < units.length; unitIndex++) {
+    const unit = units[unitIndex];
     const wordCount = countWords(unit);
     if (wordCount <= 3) {
-      const isOpeningHook = index === 0 && looksPunchyOpeningLine(unit);
-      const isClosingBeat = index === units.length - 1 && looksDeclarativeClosingLine(unit);
+      const isOpeningHook = unitIndex === 0 && looksPunchyOpeningLine(unit);
+      const isClosingBeat = unitIndex === units.length - 1 && looksDeclarativeClosingLine(unit);
       const shouldPreserveAsStandalone = isOpeningHook || isClosingBeat;
 
       if (shouldPreserveAsStandalone || merged.length === 0) {
@@ -185,6 +185,7 @@ export function limitWords(text: string, maxWords: number): string {
 }
 
 function sceneRoleForIndex(index: number, totalScenes: number): SceneRole {
+  if (totalScenes <= 1) return 'opening';
   if (index === 0) return 'opening';
   if (index === totalScenes - 1) return 'closing';
   return 'middle';
