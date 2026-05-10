@@ -65,8 +65,18 @@ test('resolveProductionPlan merges engine config and reel spec JSON', () => {
         script: {
           full_text: 'Be like water. Flow, adapt, and keep moving.',
           segments: [
-            { text: 'Be like water.', visual_prompt: 'liquid gold reflections' },
-            { text: 'Flow, adapt, and keep moving.', visual_prompt: 'surreal river canyon' },
+            {
+              text: 'Be like water.',
+              visual_prompt: 'liquid gold reflections',
+              timestamp_start: '0:00',
+              timestamp_end: '0:03',
+            },
+            {
+              text: 'Flow, adapt, and keep moving.',
+              visual_prompt: 'surreal river canyon',
+              timestamp_start: '0:03',
+              timestamp_end: '0:10',
+            },
           ],
         },
         elevenLabs_config: {
@@ -121,12 +131,40 @@ test('resolveProductionPlan merges engine config and reel spec JSON', () => {
     assert.equal(plan.instagram.coverFrameOffsetMs, 3000);
     assert.equal(plan.narrationSegments.length, 2);
     assert.equal(plan.narrationSegments[0].promptText, 'liquid gold reflections');
+    assert.equal(plan.narrationSegments[0].timestampStartSeconds, 0);
+    assert.equal(plan.narrationSegments[0].timestampEndSeconds, 3);
+    assert.equal(plan.narrationSegments[1].timestampStartSeconds, 3);
+    assert.equal(plan.narrationSegments[1].timestampEndSeconds, 10);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
 });
 
-test('planNarrationScenes uses explicit narration segments and prompt overrides', () => {
+test('planNarrationScenes uses explicit segment timestamps to group narration first', () => {
+  const scenes = planNarrationScenes(
+    'Be like water. Flow around the obstacle. Then carve a new path.',
+    'Surreal cinematic river world',
+    18,
+    {
+      narrationSegments: [
+        { text: 'Be like water.', promptText: 'liquid gold reflections', timestampStartSeconds: 0, timestampEndSeconds: 3 },
+        { text: 'Flow around the obstacle.', promptText: 'river bending around stone', timestampStartSeconds: 3, timestampEndSeconds: 10 },
+        { text: 'Then carve a new path.', promptText: 'canyon opening forward', timestampStartSeconds: 10, timestampEndSeconds: 18 },
+      ],
+    }
+  );
+
+  assert.equal(scenes.length, 2);
+  assert.deepEqual(scenes.map(scene => scene.clipDuration), [10, 10]);
+  assert.equal(scenes[0].narrationChunk, 'Be like water. Flow around the obstacle.');
+  assert.equal(scenes[0].estimatedNarrationSecs, 10);
+  assert.match(scenes[0].promptText, /liquid gold reflections river bending around stone/);
+  assert.equal(scenes[1].narrationChunk, 'Then carve a new path.');
+  assert.equal(scenes[1].estimatedNarrationSecs, 8);
+  assert.match(scenes[1].promptText, /canyon opening forward/);
+});
+
+test('planNarrationScenes falls back to word-count planning when segment timestamps are absent', () => {
   const scenes = planNarrationScenes(
     'Be like water. Flow, adapt, and keep moving.',
     'Surreal cinematic river world',
@@ -142,6 +180,8 @@ test('planNarrationScenes uses explicit narration segments and prompt overrides'
 
   assert.equal(scenes.length, 2);
   assert.deepEqual(scenes.map(scene => scene.clipDuration), [10, 10]);
+  assert.equal(scenes[0].estimatedNarrationSecs, 4.5);
+  assert.equal(scenes[1].estimatedNarrationSecs, 7.5);
   assert.match(scenes[0].promptText, /liquid gold reflections/);
   assert.match(scenes[1].promptText, /surreal river canyon/);
 });

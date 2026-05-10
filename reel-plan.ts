@@ -126,7 +126,20 @@ function extractSegments(source: unknown): ResolvedNarrationSegment[] {
       ['visual_prompt', 'prompt'],
     ]);
 
-    return [{ text, promptText }];
+    const timestampStartSeconds = parseTimestampSeconds(pickValue(segment, [
+      ['timestamp_start'],
+      ['timestampStart'],
+      ['start_timestamp'],
+      ['start_time'],
+    ]));
+    const timestampEndSeconds = parseTimestampSeconds(pickValue(segment, [
+      ['timestamp_end'],
+      ['timestampEnd'],
+      ['end_timestamp'],
+      ['end_time'],
+    ]));
+
+    return [{ text, promptText, timestampStartSeconds, timestampEndSeconds }];
   });
 }
 
@@ -271,6 +284,8 @@ export interface ResolvedVoiceSettings {
 export interface ResolvedNarrationSegment {
   text: string;
   promptText?: string;
+  timestampStartSeconds?: number;
+  timestampEndSeconds?: number;
 }
 
 export interface ResolvedProductionPlan {
