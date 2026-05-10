@@ -220,7 +220,7 @@ function generateCaption(concept) {
     return `The river does not rush. It just never stops.\n\nShow up on the quiet days. Those are the days that change everything.\n\nSave this for the day you want to quit. 💧\n\n#motivation #mindset #discipline #resilience #reels #growth`;
   }
   if (c.match(/transform|become|overcome/)) {
-    return `You are not behind. You are mid-transformation.\n\nStop judging your chapter 1 against someone else\'s chapter 10.\n\nTag someone who needs this. 🔥\n\n#motivation #selfgrowth #discipline #mindset #reels #transformation`;
+    return `You are not behind. You are mid-transformation.\n\nStop judging your chapter 1 against someone else's chapter 10.\n\nTag someone who needs this. 🔥\n\n#motivation #selfgrowth #discipline #mindset #reels #transformation`;
   }
   return `Success is not an event. It is a direction.\n\nThe person you become is built in the quiet work.\n\nSave this and come back to it. 🏆\n\n#motivation #mindset #success #discipline #reels #consistency`;
 }

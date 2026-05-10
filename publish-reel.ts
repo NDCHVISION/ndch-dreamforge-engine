@@ -221,7 +221,7 @@ async function waitForContainer(containerId: string): Promise<void> {
   let attempt = 0;
 
   while (Date.now() < deadline) {
-    attempt += 1;
+    attempt++;
 
     const { status_code, status } = await gql<{
       status_code: ContainerStatus;
