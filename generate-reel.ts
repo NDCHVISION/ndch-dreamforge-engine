@@ -257,6 +257,7 @@ interface ScenePlanningOptions {
 interface NarrationUnit {
   text: string;
   promptText?: string;
+  durationSecs?: number;
 }
 
 function ensureMinimumUnitCount(units: NarrationUnit[], minimumCount: number): NarrationUnit[] {
@@ -283,11 +284,35 @@ function ensureMinimumUnitCount(units: NarrationUnit[], minimumCount: number): N
     expanded.splice(
       splitIndex,
       1,
-      ...pieces.map(text => ({ text, promptText: unitToSplit.promptText }))
+      ...pieces.map(text => ({
+        text,
+        promptText: unitToSplit.promptText,
+        durationSecs: unitToSplit.durationSecs !== undefined
+          ? Number((unitToSplit.durationSecs / pieces.length).toFixed(3))
+          : undefined,
+      }))
     );
   }
 
   return expanded;
+}
+
+function resolveSegmentDurationSecs(
+  segment: ResolvedNarrationSegment,
+  nextSegment?: ResolvedNarrationSegment
+): number | undefined {
+  const startSeconds = segment.timestampStartSeconds;
+  const endSeconds = segment.timestampEndSeconds ?? nextSegment?.timestampStartSeconds;
+
+  if (startSeconds === undefined || endSeconds === undefined || endSeconds <= startSeconds) {
+    return undefined;
+  }
+
+  return Number((endSeconds - startSeconds).toFixed(3));
+}
+
+function getUnitNarrationSecs(unit: NarrationUnit, secondsPerWord: number): number {
+  return unit.durationSecs ?? (countWords(unit.text) * secondsPerWord);
 }
 
 export function planNarrationScenes(
@@ -305,9 +330,10 @@ export function planNarrationScenes(
   const secondsPerWord = totalWords > 0 ? audioDurationSecs / totalWords : 0;
   const totalClips = clipDurations.length;
   const explicitUnits = options.narrationSegments
-    ?.map(segment => ({
+    ?.map((segment, index, segments) => ({
       text: normalizeWhitespace(segment.text),
       promptText: segment.promptText ? normalizeWhitespace(segment.promptText) : undefined,
+      durationSecs: resolveSegmentDurationSecs(segment, segments[index + 1]),
     }))
     .filter(segment => segment.text);
   const seededUnits = explicitUnits && explicitUnits.length > 0
@@ -322,39 +348,37 @@ export function planNarrationScenes(
     const targetNarrationSecs = clipDuration;
     const minimumNarrationSecs = Math.max(2.5, clipDuration * 0.6);
     const segmentUnits: NarrationUnit[] = [];
-    let segmentWordCount = 0;
+    let segmentNarrationSecs = 0;
 
     while (unitIndex < units.length) {
       const unit = units[unitIndex];
-      const unitWordCount = countWords(unit.text);
-      const projectedWordCount = segmentWordCount + unitWordCount;
-      const currentNarrationSecs = segmentWordCount * secondsPerWord;
-      const projectedSecs = projectedWordCount * secondsPerWord;
+      const unitNarrationSecs = getUnitNarrationSecs(unit, secondsPerWord);
+      const projectedNarrationSecs = segmentNarrationSecs + unitNarrationSecs;
       const remainingUnits = units.length - (unitIndex + 1);
       const remainingClips = totalClips - (clipIndex + 1);
       const mustLeaveUnitsForRemainingClips = remainingUnits < remainingClips;
 
       if (segmentUnits.length === 0) {
         segmentUnits.push(unit);
-        segmentWordCount = projectedWordCount;
+        segmentNarrationSecs = projectedNarrationSecs;
         unitIndex++;
         continue;
       }
 
       if (mustLeaveUnitsForRemainingClips) break;
-      if (currentNarrationSecs < minimumNarrationSecs) {
+      if (segmentNarrationSecs < minimumNarrationSecs) {
         segmentUnits.push(unit);
-        segmentWordCount = projectedWordCount;
+        segmentNarrationSecs = projectedNarrationSecs;
         unitIndex++;
         continue;
       }
 
-      const currentGap = Math.abs(currentNarrationSecs - targetNarrationSecs);
-      const projectedGap = Math.abs(projectedSecs - targetNarrationSecs);
+      const currentGap = Math.abs(segmentNarrationSecs - targetNarrationSecs);
+      const projectedGap = Math.abs(projectedNarrationSecs - targetNarrationSecs);
 
-      if (projectedSecs <= targetNarrationSecs || projectedGap <= currentGap) {
+      if (projectedNarrationSecs <= targetNarrationSecs || projectedGap <= currentGap) {
         segmentUnits.push(unit);
-        segmentWordCount = projectedWordCount;
+        segmentNarrationSecs = projectedNarrationSecs;
         unitIndex++;
         continue;
       }
@@ -364,9 +388,9 @@ export function planNarrationScenes(
 
     if (clipIndex === totalClips - 1 && unitIndex < units.length) {
       segmentUnits.push(...units.slice(unitIndex));
-      segmentWordCount += units
+      segmentNarrationSecs += units
         .slice(unitIndex)
-        .reduce((total, unit) => total + countWords(unit.text), 0);
+        .reduce((total, unit) => total + getUnitNarrationSecs(unit, secondsPerWord), 0);
       unitIndex = units.length;
     }
 
@@ -380,7 +404,7 @@ export function planNarrationScenes(
     segments.push({
       clipIndex,
       clipDuration,
-      estimatedNarrationSecs: Number((segmentWordCount * secondsPerWord).toFixed(1)),
+      estimatedNarrationSecs: Number(segmentNarrationSecs.toFixed(1)),
       narrationChunk,
       promptText: buildSegmentPrompt(
         basePrompt,
