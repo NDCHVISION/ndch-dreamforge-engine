@@ -1133,12 +1133,11 @@ async function main(): Promise<void> {
 
 if (process.argv[1] && resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url))) {
   main().catch(err => {
+    const reason = err instanceof Error ? err.message : String(err);
     console.error('');
-    if (err instanceof Error) {
-      console.error('✗  Reel generation failed. See logs above for the failing step.');
-    } else {
-      console.error('✗  Reel generation failed.');
-    }
+    console.error('✗  Reel generation failed.');
+    console.error(`   Reason: ${reason}`);
+    console.error('   See logs above for the failing step.');
     process.exit(1);
   });
 }
