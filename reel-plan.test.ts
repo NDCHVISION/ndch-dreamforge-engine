@@ -387,6 +387,7 @@ test('buildSegmentPrompt uses closing-focused cinematic direction', () => {
 });
 
 test('buildSegmentPrompt stays under runway prompt limit', () => {
+  // Repeat enough times to force anchor truncation so we verify the hard 1000-char cap.
   const prompt = buildSegmentPrompt(
     'Hyper-detailed neon megacity skyline '.repeat(80),
     'A procession of silhouetted riders crossing a floating bridge at dusk.',

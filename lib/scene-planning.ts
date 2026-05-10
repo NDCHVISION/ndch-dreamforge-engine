@@ -3,6 +3,8 @@ import { type ResolvedNarrationSegment } from '../reel-plan.ts';
 
 const MAX_REEL_SECS = ENGINE_DEFAULTS.maxDurationSeconds;
 const MAX_RUNWAY_PROMPT_CHARS = 1000;
+const QUOTE_EDGE_CHARS_PATTERN = /^["'“”‘’]+|["'“”‘’]+$/g;
+const WEAK_FOCUS_LEAD_INS_PATTERN = /^(?:(?:in this scene|this scene shows|we see|we watch|we begin with|we start with|there is|there are|it is|this is|the idea is)\b[:,\s-]*)+/i;
 
 export type SceneRole = 'opening' | 'middle' | 'closing';
 
@@ -193,11 +195,8 @@ function compactVisualFocus(text: string): string {
   let focus = normalizeWhitespace(text);
   if (!focus) return focus;
 
-  focus = focus.replace(/^["'“”‘’]+|["'“”‘’]+$/g, '');
-  const weakLeadInPattern = /^(?:in this scene|this scene shows|we see|we watch|we begin with|we start with|there is|there are|it is|this is|the idea is)\b[:,\s-]*/i;
-  while (weakLeadInPattern.test(focus)) {
-    focus = focus.replace(weakLeadInPattern, '');
-  }
+  focus = focus.replace(QUOTE_EDGE_CHARS_PATTERN, '');
+  focus = focus.replace(WEAK_FOCUS_LEAD_INS_PATTERN, '');
   focus = focus.replace(
     /\b(?:basically|just|really|actually|simply|kind of|sort of|you know|like)\b/gi,
     ''
