@@ -807,7 +807,7 @@ async function main(): Promise<void> {
   const finalPath = mergeAudioVideo(audioPath, videoPath);
   const publicUrl = await uploadToGitHubRelease(finalPath);
 
-  // Write resolved plan (including scene timeline) once all planning is complete.
+  // Write resolved plan artifact (including scene timeline) after generation completes.
   const resolvedPlanPath = join(TMP, `resolved-plan-${Date.now()}.json`);
   writeFileSync(resolvedPlanPath, JSON.stringify({
     engineConfigPath: plan.engineConfigPath,
