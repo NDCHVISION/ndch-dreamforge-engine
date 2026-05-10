@@ -3,8 +3,6 @@ import { type ResolvedNarrationSegment } from '../reel-plan.ts';
 
 const MAX_REEL_SECS = ENGINE_DEFAULTS.maxDurationSeconds;
 const MAX_RUNWAY_PROMPT_CHARS = 1000;
-const SCENE_PROMPT_SUFFIX_BUDGET = 360;
-const MAX_PROMPT_ANCHOR_LENGTH = MAX_RUNWAY_PROMPT_CHARS - SCENE_PROMPT_SUFFIX_BUDGET;
 
 export type SceneRole = 'opening' | 'middle' | 'closing';
 
@@ -267,10 +265,12 @@ export function buildSegmentPrompt(
 ): string {
   const role = sceneRoleForIndex(clipIndex, totalClips);
   const directives = rolePromptDirectives(role);
-  // Runway promptText hard limit is 1000 chars. Reserve space for structured cinematic directives.
-  const promptAnchor = normalizeWhitespace(basePrompt).replace(/[.?!,;:\s]+$/, '').slice(0, MAX_PROMPT_ANCHOR_LENGTH);
-  const sceneFocus = limitWords(compactVisualFocus(promptOverride ?? narrationChunk), 20);
-  const assembled = `${promptAnchor}. ${sceneCue(clipIndex, totalClips)}. ${directives.roleLine} Composition: ${directives.composition} Motion: ${directives.motion} Lighting/atmosphere: ${directives.atmosphere} Continuity: ${directives.continuity} Tone: ${directives.tone} Visual focus: ${sceneFocus}`;
+  const sceneFocus = limitWords(compactVisualFocus(promptOverride ?? narrationChunk), 24);
+  const promptSuffix = `${sceneCue(clipIndex, totalClips)}. ${directives.roleLine} Composition: ${directives.composition} Motion: ${directives.motion} Lighting/atmosphere: ${directives.atmosphere} Continuity: ${directives.continuity} Tone: ${directives.tone} Visual focus: ${sceneFocus}`;
+  const normalizedAnchor = normalizeWhitespace(basePrompt).replace(/[.?!,;:\s]+$/, '');
+  const maxAnchorLength = Math.max(0, MAX_RUNWAY_PROMPT_CHARS - promptSuffix.length - 2);
+  const promptAnchor = normalizedAnchor.slice(0, maxAnchorLength);
+  const assembled = promptAnchor ? `${promptAnchor}. ${promptSuffix}` : promptSuffix;
   return assembled.slice(0, MAX_RUNWAY_PROMPT_CHARS);
 }
 

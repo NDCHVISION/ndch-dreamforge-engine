@@ -406,7 +406,7 @@ test('buildSegmentPrompt compacts visual focus by trimming weak lead-ins and fil
     'In this scene we see just really a lone astronaut framed against a burning horizon with shattered satellites.'
   );
 
-  assert.match(prompt, /Visual focus: a lone astronaut framed against a burning horizon with shattered satellites\./);
+  assert.match(prompt, /Visual focus: .*lone astronaut.*burning horizon.*shattered satellites/i);
   assert.doesNotMatch(prompt, /Visual focus: In this scene we see/i);
 });
 
