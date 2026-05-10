@@ -3,7 +3,7 @@ import { type ResolvedNarrationSegment } from '../reel-plan.ts';
 
 const MAX_REEL_SECS = ENGINE_DEFAULTS.maxDurationSeconds;
 const MAX_RUNWAY_PROMPT_CHARS = 1000;
-const SCENE_PROMPT_SUFFIX_BUDGET = 200;
+const SCENE_PROMPT_SUFFIX_BUDGET = 360;
 const MAX_PROMPT_ANCHOR_LENGTH = MAX_RUNWAY_PROMPT_CHARS - SCENE_PROMPT_SUFFIX_BUDGET;
 
 export type SceneRole = 'opening' | 'middle' | 'closing';
@@ -191,6 +191,65 @@ function sceneRoleForIndex(index: number, totalScenes: number): SceneRole {
   return 'middle';
 }
 
+function compactVisualFocus(text: string): string {
+  let focus = normalizeWhitespace(text);
+  if (!focus) return focus;
+
+  focus = focus.replace(/^["'“”‘’]+|["'“”‘’]+$/g, '');
+  const weakLeadInPattern = /^(?:in this scene|this scene shows|we see|we watch|we begin with|we start with|there is|there are|it is|this is|the idea is)\b[:,\s-]*/i;
+  while (weakLeadInPattern.test(focus)) {
+    focus = focus.replace(weakLeadInPattern, '');
+  }
+  focus = focus.replace(
+    /\b(?:basically|just|really|actually|simply|kind of|sort of|you know|like)\b/gi,
+    ''
+  );
+
+  return normalizeWhitespace(focus.replace(/\s+([,.;:!?])/g, '$1'));
+}
+
+interface RolePromptDirectives {
+  roleLine: string;
+  composition: string;
+  motion: string;
+  atmosphere: string;
+  continuity: string;
+  tone: string;
+}
+
+function rolePromptDirectives(role: SceneRole): RolePromptDirectives {
+  if (role === 'opening') {
+    return {
+      roleLine: 'Hook instantly with a striking first image and clear emotion.',
+      composition: 'Bold composition: dominant subject, readable silhouette, immediate depth.',
+      motion: 'Cinematic reveal or push-in that grabs attention in the first beat.',
+      atmosphere: 'High-contrast light with rich atmosphere and texture.',
+      continuity: 'Establish the visual world, palette, and motifs for later scenes.',
+      tone: 'Emotion is immediate, vivid, and legible.',
+    };
+  }
+
+  if (role === 'closing') {
+    return {
+      roleLine: 'Deliver a resolved final image that feels iconic and memorable.',
+      composition: 'Simplified final tableau with clean lines and strong subject clarity.',
+      motion: 'Motion decelerates into a confident hold on the last frame.',
+      atmosphere: 'Refined atmospheric light that supports final visual clarity.',
+      continuity: 'Resolve within the same world using established motifs and palette.',
+      tone: 'Emotional landing: earned, calm, and definitive.',
+    };
+  }
+
+  return {
+    roleLine: 'Advance the narrative with visible progression inside the same world.',
+    composition: 'Evolving composition that shows transformation and deepening metaphor.',
+    motion: 'Cinematic tracking/orbit/parallax movement that carries momentum.',
+    atmosphere: 'Lighting and atmosphere evolve while preserving visual coherence.',
+    continuity: 'Continue established style language, motifs, and texture continuity.',
+    tone: 'Emotion deepens with mounting intensity and purpose.',
+  };
+}
+
 export function sceneCue(index: number, totalScenes: number): string {
   if (totalScenes === 1) return 'Single continuous scene';
   const role = sceneRoleForIndex(index, totalScenes);
@@ -207,16 +266,11 @@ export function buildSegmentPrompt(
   promptOverride?: string
 ): string {
   const role = sceneRoleForIndex(clipIndex, totalClips);
-  // Runway promptText hard limit is 1000 chars. Reserve ~260 for the scene-specific suffix.
+  const directives = rolePromptDirectives(role);
+  // Runway promptText hard limit is 1000 chars. Reserve space for structured cinematic directives.
   const promptAnchor = normalizeWhitespace(basePrompt).replace(/[.?!,;:\s]+$/, '').slice(0, MAX_PROMPT_ANCHOR_LENGTH);
-  const sceneFocus = limitWords(promptOverride ?? narrationChunk, 24);
-  let roleDirection = 'Continue the same visual world with cinematic progression and momentum.';
-  if (role === 'opening') {
-    roleDirection = 'Bold hook. Immediate, visually striking first beat with clear emotion.';
-  } else if (role === 'closing') {
-    roleDirection = 'Conclusive final beat. Land a resolved, iconic image that completes the emotion.';
-  }
-  const assembled = `${promptAnchor}. ${sceneCue(clipIndex, totalClips)}. ${roleDirection} Visual focus: ${sceneFocus}`;
+  const sceneFocus = limitWords(compactVisualFocus(promptOverride ?? narrationChunk), 20);
+  const assembled = `${promptAnchor}. ${sceneCue(clipIndex, totalClips)}. ${directives.roleLine} Composition: ${directives.composition} Motion: ${directives.motion} Lighting/atmosphere: ${directives.atmosphere} Continuity: ${directives.continuity} Tone: ${directives.tone} Visual focus: ${sceneFocus}`;
   return assembled.slice(0, MAX_RUNWAY_PROMPT_CHARS);
 }
 
