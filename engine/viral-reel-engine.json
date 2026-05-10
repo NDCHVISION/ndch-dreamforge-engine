@@ -1,0 +1,124 @@
+{
+  "$schema": "viral-reel-engine/v1.0",
+  "engine": {
+    "name": "Viral Motivational Reel Engine",
+    "version": "1.0.0",
+    "description": "Global configuration for producing viral motivational Instagram Reels using ElevenLabs TTS and Runway Gen-4 video generation.",
+    "style_library": {
+      "style_1_fractal": {
+        "id": "style_1_fractal",
+        "label": "Fractal Gold Architecture",
+        "description": "Surreal, looping fractal visuals with liquid gold tones, sacred geometry, and cinematic depth.",
+        "base_prompt": "Create a surreal looping reel about QUOTE — liquid gold fractal geometry, sacred architecture dissolving into light, hyper-detailed cinematic motion, 4K, slow zoom, spiritual aesthetic, no text overlays.",
+        "keywords": ["water", "flow", "adapt", "resilience", "nature", "universe", "cosmos"],
+        "emotional_tone": "transcendent",
+        "camera_notes": "slow push-in, gentle orbital drift, depth-of-field shifts"
+      },
+      "style_2_identity": {
+        "id": "style_2_identity",
+        "label": "Identity & Shadow Self",
+        "description": "Dark cinematic portraiture with dramatic lighting, silhouettes, and intense personal narrative energy.",
+        "base_prompt": "Create a cinematic reel about QUOTE — dark dramatic portraiture, silhouette against golden light, slow motion fabric and dust particles, intense personal transformation aesthetic, 4K, no text overlays.",
+        "keywords": ["identity", "self", "shadow", "purpose", "strength", "warrior", "power", "discipline"],
+        "emotional_tone": "intense",
+        "camera_notes": "slow push-in on face, rack focus, handheld feel"
+      },
+      "style_3_hud": {
+        "id": "style_3_hud",
+        "label": "HUD Neural Grid",
+        "description": "Futuristic HUD-style overlays, neural network grids, dark sci-fi aesthetic with electric blue and gold.",
+        "base_prompt": "Create a futuristic reel about QUOTE — HUD data overlays, neural network grid lines, electric blue and gold neon accents, dark background, AI aesthetic, cinematic motion, 4K, no readable text.",
+        "keywords": ["mind", "brain", "focus", "ai", "future", "system", "code", "logic", "think"],
+        "emotional_tone": "cerebral",
+        "camera_notes": "digital zoom, glitch transitions, parallax layers"
+      }
+    },
+    "style_selection_logic": {
+      "description": "Rules evaluated in priority order. First keyword match wins. Default triggers when no keywords match.",
+      "rules": [
+        {
+          "priority": 1,
+          "trigger_keywords": ["water", "flow", "adapt", "resilience", "nature", "cosmos", "universe"],
+          "select": "style_1_fractal"
+        },
+        {
+          "priority": 2,
+          "trigger_keywords": ["identity", "self", "shadow", "purpose", "strength", "warrior", "discipline"],
+          "select": "style_2_identity"
+        },
+        {
+          "priority": 3,
+          "trigger_keywords": ["mind", "brain", "focus", "ai", "future", "system", "code", "logic"],
+          "select": "style_3_hud"
+        },
+        {
+          "priority": 99,
+          "default": "style_1_fractal"
+        }
+      ]
+    },
+    "virality_data": {
+      "target_platform": "instagram_reels",
+      "duration_strategy": {
+        "engine_default_seconds": 38,
+        "minimum_seconds": 15,
+        "maximum_seconds": 90,
+        "sweet_spot_seconds": 38,
+        "rationale": "38s optimises for full watch-through rate on Instagram Reels while allowing complete narration arc."
+      },
+      "engagement_hooks": {
+        "open_with_tension": true,
+        "close_with_cta": true,
+        "save_bait_in_caption": true,
+        "subtitle_on_screen": true
+      }
+    },
+    "production_stack": {
+      "voiceover": {
+        "provider": "elevenlabs",
+        "recommended_models": ["eleven_turbo_v2_5", "eleven_multilingual_v2"],
+        "default_voice_id": "pNInz6obpgDQGcFmaJgB",
+        "default_voice_name": "Adam"
+      },
+      "video": {
+        "provider": "runway",
+        "model": "gen4_turbo",
+        "ratio": "720:1280",
+        "clip_duration_seconds": 10
+      },
+      "merge": {
+        "tool": "ffmpeg",
+        "format": "mp4",
+        "audio_codec": "aac",
+        "video_codec": "libx264"
+      }
+    },
+    "subtitle_system": {
+      "enabled": true,
+      "font": "Montserrat-Bold",
+      "font_size": 56,
+      "font_color": "#FFFFFF",
+      "stroke_color": "#000000",
+      "stroke_width": 3,
+      "position": "bottom_center",
+      "margin_bottom": 120,
+      "word_highlight_color": "#FFD700",
+      "animation": "fade_in",
+      "max_words_per_line": 4
+    },
+    "instagram_defaults": {
+      "cover_frame": "00:03",
+      "share_to_feed": true,
+      "hashtag_strategy": "niche_plus_broad",
+      "default_hashtags": [
+        "#motivation",
+        "#mindset",
+        "#viral",
+        "#reels",
+        "#inspiration",
+        "#growth",
+        "#success"
+      ]
+    }
+  }
+}
