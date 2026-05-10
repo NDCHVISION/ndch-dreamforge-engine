@@ -19,7 +19,7 @@ import { writeFileSync, readFileSync, appendFileSync } from 'node:fs';
 import { execSync }                                    from 'node:child_process';
 import { randomUUID }                                  from 'node:crypto';
 import { tmpdir }                                      from 'node:os';
-import { join }                                        from 'node:path';
+import { join, resolve }                               from 'node:path';
 
 // ── Env ───────────────────────────────────────────────────────────────────────
 
@@ -105,6 +105,7 @@ function planClipDurations(audioDurationSecs: number): Array<5 | 10> {
       remaining -= 10;
       continue;
     }
+    // For 6-10 seconds remaining, use 10 to avoid ending visuals before narration.
     durations.push(remaining <= 5 ? 5 : 10);
     break;
   }
@@ -163,7 +164,9 @@ async function generateRunwayClip(duration: 5 | 10, clipIndex: number, totalClip
 
     if (task.status === 'SUCCEEDED') {
       const videoUrl = task.output?.[0];
-      if (!videoUrl) throw new Error(`Runway task ${id} succeeded without output URL`);
+      if (!videoUrl) throw new Error(
+        `Runway task ${id} succeeded but returned no output URL — this may indicate an API response change or incomplete generation`
+      );
 
       const videoPath = join(TMP, `runway-${String(clipIndex + 1).padStart(2, '0')}.mp4`);
       const dl        = await fetch(videoUrl);
@@ -187,12 +190,15 @@ function stitchVideoClips(clipPaths: string[]): string {
   const uniqueId = randomUUID();
   const listPath = join(TMP, `runway-concat-${uniqueId}.txt`);
   const stitchedPath = join(TMP, `runway-stitched-${uniqueId}.mp4`);
+  const resolvedTmpPrefix = `${resolve(TMP)}/`;
 
   const listFile = clipPaths.map(path => {
-    if (/[\r\n]/.test(path) || !path.startsWith(`${TMP}/runway-`) || !path.endsWith('.mp4')) {
+    const resolvedPath = resolve(path);
+    if (/[\r\n]/.test(resolvedPath) || !resolvedPath.startsWith(resolvedTmpPrefix) || !resolvedPath.endsWith('.mp4')) {
       throw new Error(`Unsafe clip path for ffmpeg concat list: ${path}`);
     }
-    return `file '${path.replace(/'/g, `'\\''`)}'`;
+    const escapedPath = resolvedPath.replace(/\\/g, '\\\\').replace(/'/g, `'\\''`);
+    return `file '${escapedPath}'`;
   }).join('\n');
 
   writeFileSync(listPath, `${listFile}\n`);
