@@ -2,6 +2,9 @@ import { ENGINE_DEFAULTS } from '../engine-defaults.ts';
 import { type ResolvedNarrationSegment } from '../reel-plan.ts';
 
 const MAX_REEL_SECS = ENGINE_DEFAULTS.maxDurationSeconds;
+const MAX_RUNWAY_PROMPT_CHARS = 1000;
+const SCENE_PROMPT_SUFFIX_BUDGET = 260;
+const MAX_PROMPT_ANCHOR_LENGTH = MAX_RUNWAY_PROMPT_CHARS - SCENE_PROMPT_SUFFIX_BUDGET;
 
 export type SceneRole = 'opening' | 'middle' | 'closing';
 
@@ -189,7 +192,7 @@ function sceneRoleForIndex(index: number, totalScenes: number): SceneRole {
 
 export function sceneCue(index: number, totalScenes: number): string {
   const role = sceneRoleForIndex(index, totalScenes);
-  if (role === 'opening') return totalScenes === 1 ? 'Opening scene' : 'Opening scene';
+  if (role === 'opening') return 'Opening scene';
   if (role === 'closing') return 'Closing scene';
   return `Scene ${index + 1} of ${totalScenes}`;
 }
@@ -203,7 +206,7 @@ export function buildSegmentPrompt(
 ): string {
   const role = sceneRoleForIndex(clipIndex, totalClips);
   // Runway promptText hard limit is 1000 chars. Reserve ~260 for the scene-specific suffix.
-  const promptAnchor = normalizeWhitespace(basePrompt).replace(/[.?!,;:\s]+$/, '').slice(0, 740);
+  const promptAnchor = normalizeWhitespace(basePrompt).replace(/[.?!,;:\s]+$/, '').slice(0, MAX_PROMPT_ANCHOR_LENGTH);
   const sceneFocus = limitWords(promptOverride ?? narrationChunk, 24);
   const roleDirection = role === 'opening'
     ? 'Bold hook. Immediate, visually striking first beat with clear emotion.'
@@ -211,7 +214,7 @@ export function buildSegmentPrompt(
       ? 'Conclusive final beat. Land a resolved, iconic image that completes the emotion.'
       : 'Continue the same visual world with cinematic progression and momentum.';
   const assembled = `${promptAnchor}. ${sceneCue(clipIndex, totalClips)}. ${roleDirection} Visual focus: ${sceneFocus}`;
-  return assembled.slice(0, 1000);
+  return assembled.slice(0, MAX_RUNWAY_PROMPT_CHARS);
 }
 
 export function planClipDurations(audioDurationSecs: number, targetDurationSecs = audioDurationSecs): Array<5 | 10> {
