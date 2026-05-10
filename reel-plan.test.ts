@@ -4,7 +4,7 @@ import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-import { planNarrationScenes } from './generate-reel.ts';
+import { planNarrationScenes, buildSceneTimeline } from './generate-reel.ts';
 import { resolveProductionPlan } from './reel-plan.ts';
 
 test('resolveProductionPlan falls back to env values when JSON paths are absent', () => {
@@ -184,4 +184,133 @@ test('planNarrationScenes falls back to word-count planning when segment timesta
   assert.equal(scenes[1].estimatedNarrationSecs, 7.5);
   assert.match(scenes[0].promptText, /liquid gold reflections/);
   assert.match(scenes[1].promptText, /surreal river canyon/);
+});
+
+test('planNarrationScenes populates coveredSegmentIndices from explicit segments', () => {
+  const scenes = planNarrationScenes(
+    'Be like water. Flow around the obstacle. Then carve a new path.',
+    'Surreal cinematic river world',
+    18,
+    {
+      narrationSegments: [
+        { text: 'Be like water.', promptText: 'liquid gold reflections', timestampStartSeconds: 0, timestampEndSeconds: 3 },
+        { text: 'Flow around the obstacle.', promptText: 'river bending around stone', timestampStartSeconds: 3, timestampEndSeconds: 10 },
+        { text: 'Then carve a new path.', promptText: 'canyon opening forward', timestampStartSeconds: 10, timestampEndSeconds: 18 },
+      ],
+    }
+  );
+
+  // Scene 1 groups segments 0 and 1 (0–10s fits a 10s clip)
+  assert.deepEqual(scenes[0].coveredSegmentIndices, [0, 1]);
+  assert.equal(scenes[0].timestampStartSeconds, 0);
+  assert.equal(scenes[0].timestampEndSeconds, 10);
+  assert.equal(scenes[0].intendedNarrationDurationSecs, 10);
+
+  // Scene 2 covers segment 2 (10–18s)
+  assert.deepEqual(scenes[1].coveredSegmentIndices, [2]);
+  assert.equal(scenes[1].timestampStartSeconds, 10);
+  assert.equal(scenes[1].timestampEndSeconds, 18);
+  assert.equal(scenes[1].intendedNarrationDurationSecs, 8);
+});
+
+test('planNarrationScenes coveredSegmentIndices are empty when no explicit segments are provided', () => {
+  const scenes = planNarrationScenes(
+    'Be like water. Flow, adapt, and keep moving.',
+    'Surreal cinematic river world',
+    12
+  );
+
+  // Auto-split mode: no sourceSegmentIndex, so coveredSegmentIndices is empty for all clips
+  for (const scene of scenes) {
+    assert.deepEqual(scene.coveredSegmentIndices, []);
+    assert.equal(scene.timestampStartSeconds, undefined);
+    assert.equal(scene.timestampEndSeconds, undefined);
+    assert.equal(scene.intendedNarrationDurationSecs, undefined);
+  }
+});
+
+test('planNarrationScenes intendedNarrationDurationSecs is undefined when timestamps are absent', () => {
+  const scenes = planNarrationScenes(
+    'Be like water. Flow, adapt, and keep moving.',
+    'Surreal cinematic river world',
+    12,
+    {
+      narrationSegments: [
+        { text: 'Be like water.', promptText: 'liquid gold reflections' },
+        { text: 'Flow, adapt, and keep moving.', promptText: 'surreal river canyon' },
+      ],
+    }
+  );
+
+  // Segments present but no timestamps: coveredSegmentIndices populated but intended duration absent
+  assert.deepEqual(scenes[0].coveredSegmentIndices, [0]);
+  assert.equal(scenes[0].timestampStartSeconds, undefined);
+  assert.equal(scenes[0].intendedNarrationDurationSecs, undefined);
+  assert.deepEqual(scenes[1].coveredSegmentIndices, [1]);
+  assert.equal(scenes[1].timestampStartSeconds, undefined);
+  assert.equal(scenes[1].intendedNarrationDurationSecs, undefined);
+});
+
+test('buildSceneTimeline produces correct allocation entries from scene plan and segments', () => {
+  const narrationSegments = [
+    { text: 'Be like water.', promptText: 'liquid gold reflections', timestampStartSeconds: 0, timestampEndSeconds: 3 },
+    { text: 'Flow around the obstacle.', promptText: 'river bending around stone', timestampStartSeconds: 3, timestampEndSeconds: 10 },
+    { text: 'Then carve a new path.', promptText: 'canyon opening forward', timestampStartSeconds: 10, timestampEndSeconds: 18 },
+  ];
+
+  const scenes = planNarrationScenes(
+    'Be like water. Flow around the obstacle. Then carve a new path.',
+    'Surreal cinematic river world',
+    18,
+    { narrationSegments }
+  );
+
+  const timeline = buildSceneTimeline(scenes, narrationSegments);
+
+  assert.equal(timeline.length, 2);
+
+  // Entry 0: covers segments 0 and 1
+  assert.equal(timeline[0].clipIndex, 0);
+  assert.equal(timeline[0].clipDuration, 10);
+  assert.equal(timeline[0].timestampStartSeconds, 0);
+  assert.equal(timeline[0].timestampEndSeconds, 10);
+  assert.equal(timeline[0].intendedNarrationDurationSecs, 10);
+  assert.equal(timeline[0].narrationText, 'Be like water. Flow around the obstacle.');
+  assert.equal(timeline[0].coveredSegments.length, 2);
+  assert.equal(timeline[0].coveredSegments[0].segmentIndex, 0);
+  assert.equal(timeline[0].coveredSegments[0].text, 'Be like water.');
+  assert.equal(timeline[0].coveredSegments[0].timestampStartSeconds, 0);
+  assert.equal(timeline[0].coveredSegments[0].timestampEndSeconds, 3);
+  assert.equal(timeline[0].coveredSegments[0].intendedDurationSecs, 3);
+  assert.equal(timeline[0].coveredSegments[1].segmentIndex, 1);
+  assert.equal(timeline[0].coveredSegments[1].text, 'Flow around the obstacle.');
+  assert.equal(timeline[0].coveredSegments[1].intendedDurationSecs, 7);
+
+  // Entry 1: covers segment 2
+  assert.equal(timeline[1].clipIndex, 1);
+  assert.equal(timeline[1].clipDuration, 10);
+  assert.equal(timeline[1].timestampStartSeconds, 10);
+  assert.equal(timeline[1].timestampEndSeconds, 18);
+  assert.equal(timeline[1].intendedNarrationDurationSecs, 8);
+  assert.equal(timeline[1].coveredSegments.length, 1);
+  assert.equal(timeline[1].coveredSegments[0].segmentIndex, 2);
+  assert.equal(timeline[1].coveredSegments[0].text, 'Then carve a new path.');
+  assert.equal(timeline[1].coveredSegments[0].intendedDurationSecs, 8);
+});
+
+test('buildSceneTimeline produces empty coveredSegments when no explicit segments provided', () => {
+  const scenes = planNarrationScenes(
+    'Be like water. Flow, adapt, and keep moving.',
+    'Surreal cinematic river world',
+    12
+  );
+
+  const timeline = buildSceneTimeline(scenes, []);
+
+  assert.equal(timeline.length, scenes.length);
+  for (const entry of timeline) {
+    assert.deepEqual(entry.coveredSegments, []);
+    assert.equal(entry.timestampStartSeconds, undefined);
+    assert.equal(entry.intendedNarrationDurationSecs, undefined);
+  }
 });
