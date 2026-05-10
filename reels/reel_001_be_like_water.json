@@ -4,7 +4,6 @@
   "created": "2026-05-08",
   "author": "NDCH Vision",
   "status": "production_ready",
-
   "concept": {
     "input": "the value of being like water — as over time it wears down even the hardest mountains",
     "theme": "Patient, persistent effort is the most powerful force in the universe",
@@ -13,13 +12,11 @@
     "target_audience": "Entrepreneurs, builders, athletes, anyone grinding through long-game challenges",
     "psychological_hook": "The viewer sees their own slow, exhausting consistency reframed as the most powerful thing they could possibly do"
   },
-
   "quote": {
     "primary": "Be like water. Not because it bends — because it never stops. Given enough time, the river carves what no blade ever could.",
     "alternate_a": "Water does not fight the mountain. It finds every crack, shows up every day, and lets time do what force never could.",
     "alternate_b": "The river doesn't ask permission. It doesn't force. It simply never stops — and that is enough to move mountains."
   },
-
   "format": {
     "aspect_ratio": "9:16",
     "resolution": "1080x1920",
@@ -29,18 +26,22 @@
     "hook_window_seconds": 3,
     "virality_rationale": "42 seconds maximizes the save/share signal — the dominant algorithmic metric in 2026 — while maintaining strong completion rates for motivational storytelling. Long enough for a full emotional arc, short enough for non-follower push."
   },
-
   "style_selection": {
     "selected_style_id": "style_1_fractal",
     "selected_style_name": "Fractal Inner Monologue Worlds — Scenic Variant",
     "selection_method": "keyword_match",
-    "matched_keywords": ["water", "mountain", "time", "patience", "nature"],
+    "matched_keywords": [
+      "water",
+      "mountain",
+      "time",
+      "patience",
+      "nature"
+    ],
     "rule_applied": "Priority 3 — elemental/nature concept triggers style_1_fractal with scenic_variant_override",
     "override_applied": "scenic_variant_override — text-architecture replaced with organic water/stone/geological formations while maintaining brand color palette and infinite-depth camera movement",
     "why_not_style_2": "No central human character needed — the metaphor IS the landscape",
     "why_not_style_3": "Not a strategic/systemic concept — it's visceral, elemental, and felt rather than diagrammed"
   },
-
   "visual_prompt": {
     "primary_prompt": "Create a looping vertical cinematic scene in a surreal, psychologically intense style. This is the scenic variant of the Fractal Inner Monologue world: instead of text architecture, the entire environment is constructed from impossible geological formations — crystalline canyon walls of ancient black stone (#1A1A1A) split by rivers of living gold light (#C6A94F) that flow upward, sideways, and through recursive gorges defying gravity. The water itself is luminous, rendered as threads of bone-white (#F5F2EB) light that weave through the stone like veins through a body. Crimson fractures (#DC143C) appear as the water finds cracks in the rock — not violent, but inevitable, like watching a wound in slow motion finally open. The camera moves in a slow, deliberate forward drift through this infinite canyon — always moving, never arriving — as if time itself is the protagonist. The scale is inhuman: geological formations that would take millennia to form are compressed into a surreal 42-second loop. The mood is vast, patient, and quietly terrifying — the power of something that cannot be stopped. The gold water does not rush; it flows with absolute certainty. Vertical 9:16 composition, with the center of frame kept intentionally open for subtitle overlay. No text in the visual itself. The loop should be seamless, as if the journey is eternal.",
     "generation_notes": {
@@ -56,7 +57,6 @@
       "avoid": "Rushing water, violence, chaos. This water is PATIENT. All motion should feel inevitable, not urgent."
     }
   },
-
   "voiceover": {
     "script": {
       "segments": [
@@ -113,7 +113,6 @@
       "word_count": 98,
       "estimated_duration_at_0.88_speed": "41.5 seconds"
     },
-
     "elevenLabs_config": {
       "model": "eleven_multilingual_v2",
       "voice_id": "C9Uh5MFptuXa176UlaXE",
@@ -121,8 +120,8 @@
       "voice_description": "Deep, calm, unhurried — like someone who has already won and is telling you how",
       "voice_settings": {
         "stability": 0.42,
-        "similarity_boost": 0.80,
-        "style": 0.60,
+        "similarity_boost": 0.8,
+        "style": 0.6,
         "use_speaker_boost": true,
         "speed": 0.88
       },
@@ -135,7 +134,6 @@
       }
     }
   },
-
   "instagram_config": {
     "caption": {
       "full_caption": "The slowest force wins.\n\nWater doesn't fight mountains. It outlasts them.\n\nYou don't need to be the loudest. You don't need to be the fastest.\n\nYou just need to keep showing up.\n\nSave this for the day it gets hard. 💧\n\n#motivation #mindset #discipline #successmindset #growthmindset #resilience #entrepreneurmindset #belikewater #stoic #personaldevelopment #motivationalvideo #instagramreels #inspirationalquotes #mentalstrength #ndchvision"
@@ -143,8 +141,15 @@
     "cover_frame_timestamp": "0:02",
     "alt_text": "A cinematic video of light moving through dark stone canyons, representing patient persistence",
     "posting_strategy": {
-      "optimal_days": ["Tuesday", "Wednesday", "Thursday"],
-      "optimal_times": ["6:30am", "7:00pm"],
+      "optimal_days": [
+        "Tuesday",
+        "Wednesday",
+        "Thursday"
+      ],
+      "optimal_times": [
+        "6:30am",
+        "7:00pm"
+      ],
       "engagement_window": "Respond to every comment in the first 30 minutes — triggers algorithmic boost"
     },
     "series_tag": "BeLikeWater",
