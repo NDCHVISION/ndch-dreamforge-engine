@@ -209,11 +209,12 @@ export function buildSegmentPrompt(
   // Runway promptText hard limit is 1000 chars. Reserve ~260 for the scene-specific suffix.
   const promptAnchor = normalizeWhitespace(basePrompt).replace(/[.?!,;:\s]+$/, '').slice(0, MAX_PROMPT_ANCHOR_LENGTH);
   const sceneFocus = limitWords(promptOverride ?? narrationChunk, 24);
-  const roleDirection = role === 'opening'
-    ? 'Bold hook. Immediate, visually striking first beat with clear emotion.'
-    : role === 'closing'
-      ? 'Conclusive final beat. Land a resolved, iconic image that completes the emotion.'
-      : 'Continue the same visual world with cinematic progression and momentum.';
+  let roleDirection = 'Continue the same visual world with cinematic progression and momentum.';
+  if (role === 'opening') {
+    roleDirection = 'Bold hook. Immediate, visually striking first beat with clear emotion.';
+  } else if (role === 'closing') {
+    roleDirection = 'Conclusive final beat. Land a resolved, iconic image that completes the emotion.';
+  }
   const assembled = `${promptAnchor}. ${sceneCue(clipIndex, totalClips)}. ${roleDirection} Visual focus: ${sceneFocus}`;
   return assembled.slice(0, MAX_RUNWAY_PROMPT_CHARS);
 }
@@ -368,7 +369,11 @@ export function planNarrationScenes(
         continue;
       }
 
-      if (lockOpeningHook && clipIndex === 0 && isFirstUnit === false && segmentUnits.length === 1) {
+      const shouldStopAfterOpeningHook = lockOpeningHook
+        && clipIndex === 0
+        && isFirstUnit === false
+        && segmentUnits.length === 1;
+      if (shouldStopAfterOpeningHook) {
         break;
       }
 
