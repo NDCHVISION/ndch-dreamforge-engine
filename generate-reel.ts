@@ -15,17 +15,24 @@
  *   ENGINE_CONFIG_PATH  Global engine config JSON with styles/defaults
  *   REEL_SPEC_PATH      Per-reel production brief/spec JSON
  *
+ * Optional audio enhancement
+ * ──────────────────────────
+ *   REEL_MUSIC_PATH     Absolute path to an ambient music file (mp3/wav/aac).
+ *                       If absent, the engine also checks assets/ambient-drone.mp3
+ *                       relative to the repo root. Music is mixed at −18 dB with
+ *                       a 1.5 s fade-in and 2.0 s fade-out. Omit to skip music.
+ *
  * Writes REEL_VIDEO_URL to $GITHUB_ENV so publish-reel.ts picks it up.
  *
  * Node ≥ 18 + ffmpeg on PATH required.
  */
 
-import { writeFileSync, readFileSync, appendFileSync } from 'node:fs';
-import { execSync }                                    from 'node:child_process';
-import { randomUUID }                                  from 'node:crypto';
-import { tmpdir }                                      from 'node:os';
-import { join, resolve }                               from 'node:path';
-import { fileURLToPath }                               from 'node:url';
+import { writeFileSync, readFileSync, existsSync, appendFileSync } from 'node:fs';
+import { execSync }                                                 from 'node:child_process';
+import { randomUUID }                                               from 'node:crypto';
+import { tmpdir }                                                   from 'node:os';
+import { join, resolve }                                            from 'node:path';
+import { fileURLToPath }                                            from 'node:url';
 import { resolveProductionPlan, type ResolvedNarrationSegment, type ResolvedProductionPlan } from './reel-plan.ts';
 
 // ── Env ───────────────────────────────────────────────────────────────────────
@@ -43,12 +50,14 @@ interface RuntimeConfig {
   plan: ResolvedProductionPlan;
 }
 
-const DEFAULT_VOICE_ID = 'C9Uh5MFptuXa176UlaXE';   // NDCH Vision cloned voice
-const DEFAULT_ELEVENLABS_MODEL = 'eleven_multilingual_v2';
-const REPO           = 'NDCHVISION/ndch-dreamforge-engine';
-const TMP            = tmpdir();
-const MAX_REEL_SECS  = 45;
-const RUNWAY_TIMEOUT_MS = 300_000;
+const DEFAULT_VOICE_ID           = 'C9Uh5MFptuXa176UlaXE';   // NDCH Vision cloned voice
+const DEFAULT_ELEVENLABS_MODEL   = 'eleven_multilingual_v2';
+const DEFAULT_OUTPUT_FORMAT      = 'mp3_44100_192';
+const REPO                       = 'NDCHVISION/ndch-dreamforge-engine';
+const TMP                        = tmpdir();
+const MAX_REEL_SECS              = 45;
+const RUNWAY_TIMEOUT_MS          = 300_000;
+const MUSIC_ASSET_RELATIVE_PATH  = 'assets/ambient-drone.mp3';
 
 const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
 let runtimeConfig: RuntimeConfig | undefined;
@@ -124,17 +133,122 @@ function getMediaDuration(path: string): number {
   }
 }
 
+// ── Audio post-processing ─────────────────────────────────────────────────────
+
+/**
+ * Applies cinematic audio post-processing to the raw voiceover:
+ *   • 80 Hz low-shelf warm boost (+3 dB)    — adds body and gravitas
+ *   • 3 kHz presence boost (+2 dB)           — cuts through ambient music
+ *   • Loudness normalisation to −14 LUFS     — streaming-safe level (Instagram spec)
+ *
+ * Uses a single-pass loudnorm filter which is accurate to ±1 LU for speech.
+ */
+function processAudio(inputPath: string): string {
+  console.log('         post-processing audio (EQ + LUFS normalisation)…');
+  const outputPath = join(TMP, 'voiceover-processed.mp3');
+
+  try {
+    execSync(
+      `ffmpeg -y -i "${inputPath}" ` +
+      `-af "equalizer=f=80:width_type=o:width=2:g=3,` +
+      `equalizer=f=3000:width_type=o:width=2:g=2,` +
+      `loudnorm=I=-14:TP=-1.5:LRA=11" ` +
+      `-ar 44100 -b:a 192k "${outputPath}"`,
+      { stdio: 'inherit' }
+    );
+  } catch (err) {
+    throw new Error(`Audio post-processing failed: ${(err as Error).message}`);
+  }
+
+  console.log(`         processed: ${outputPath}`);
+  return outputPath;
+}
+
+/**
+ * Optionally mixes a dark-ambient music track under the processed voiceover.
+ *
+ * Music source resolution order:
+ *   1. REEL_MUSIC_PATH env var (absolute path)
+ *   2. assets/ambient-drone.mp3 in the repo root
+ *   3. Not found → skip gracefully, return voicePath unchanged
+ *
+ * Mix settings (per reel_001 spec):
+ *   • Volume: −18 dB (music sits well beneath the voice)
+ *   • Fade-in: 1.5 s
+ *   • Fade-out: 2.0 s (timed to end of narration)
+ *   • Music loops indefinitely to cover any narration length
+ */
+function mixMusicUnderVoice(voicePath: string, audioDurationSecs: number): string {
+  const musicEnvPath = process.env.REEL_MUSIC_PATH;
+  const musicAssetPath = join(resolve('.'), MUSIC_ASSET_RELATIVE_PATH);
+
+  let musicPath: string | null = null;
+  if (musicEnvPath && existsSync(musicEnvPath)) {
+    musicPath = musicEnvPath;
+  } else if (existsSync(musicAssetPath)) {
+    musicPath = musicAssetPath;
+  }
+
+  if (!musicPath) {
+    console.log(
+      '         no music track found — skipping music layer ' +
+      '(set REEL_MUSIC_PATH or add assets/ambient-drone.mp3 to the repo)'
+    );
+    return voicePath;
+  }
+
+  console.log(`         mixing ambient music: ${musicPath}`);
+  const mixedPath = join(TMP, 'voiceover-mixed.mp3');
+  const fadeOutStart = Math.max(0, audioDurationSecs - 2.0).toFixed(3);
+
+  try {
+    execSync(
+      `ffmpeg -y ` +
+      `-stream_loop -1 -i "${musicPath}" ` +
+      `-i "${voicePath}" ` +
+      `-filter_complex ` +
+        `"[0:a]volume=-18dB,` +
+        `afade=t=in:st=0:d=1.5,` +
+        `afade=t=out:st=${fadeOutStart}:d=2.0[music];` +
+        `[music][1:a]amix=inputs=2:duration=shortest[out]" ` +
+      `-map "[out]" -ar 44100 -b:a 192k "${mixedPath}"`,
+      { stdio: 'inherit' }
+    );
+  } catch (err) {
+    throw new Error(`Music mixing failed: ${(err as Error).message}`);
+  }
+
+  console.log(`         mixed: ${mixedPath}`);
+  return mixedPath;
+}
+
 // ── Step 1: ElevenLabs voiceover ──────────────────────────────────────────────
 
 async function generateVoiceover(): Promise<string> {
   console.log('  [1/4] Generating voiceover via ElevenLabs…');
   const { elevenLabsKey, plan } = getConfig();
-  const voiceId = plan.elevenLabs.voiceId ?? DEFAULT_VOICE_ID;
-  console.log(`         model: ${plan.elevenLabs.modelId}`);
-  console.log(`         voice: ${voiceId}`);
+  const voiceId      = plan.elevenLabs.voiceId ?? DEFAULT_VOICE_ID;
+  const outputFormat = (plan.elevenLabs as Record<string, unknown>).outputFormat as string | undefined
+                       ?? DEFAULT_OUTPUT_FORMAT;
+
+  console.log(`         model : ${plan.elevenLabs.modelId}`);
+  console.log(`         voice : ${voiceId}`);
+  console.log(`         format: ${outputFormat}`);
+
+  // ElevenLabs API:
+  //   • voice_settings  → stability, similarity_boost, style, use_speaker_boost
+  //   • speed           → top-level body field (NOT inside voice_settings)
+  // The reel spec stores speed inside elevenLabs_config.voice_settings for
+  // convenience; we extract it here to place it correctly in the request.
+  const rawSettings  = (plan.elevenLabs.voiceSettings ?? {}) as Record<string, unknown>;
+  const { speed, ...pureVoiceSettings } = rawSettings;
+
+  if (speed !== undefined) {
+    console.log(`         speed : ${speed}`);
+  }
 
   const res = await fetch(
-    `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
+    `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=${outputFormat}`,
     {
       method:  'POST',
       headers: {
@@ -143,20 +257,34 @@ async function generateVoiceover(): Promise<string> {
         'Accept':       'audio/mpeg',
       },
       body: JSON.stringify({
-        text: plan.script,
+        text:     plan.script,
         model_id: plan.elevenLabs.modelId,
-        ...(plan.elevenLabs.voiceSettings ? { voice_settings: plan.elevenLabs.voiceSettings } : {}),
+        ...(Object.keys(pureVoiceSettings).length > 0 ? { voice_settings: pureVoiceSettings } : {}),
+        ...(speed !== undefined ? { speed } : {}),
       }),
     }
   );
 
   if (!res.ok) throw new Error(`ElevenLabs ${res.status}: ${await res.text()}`);
 
-  const audioPath = join(TMP, 'voiceover.mp3');
-  writeFileSync(audioPath, Buffer.from(await res.arrayBuffer()));
+  // ── 1a: Save raw TTS output ────────────────────────────────────────────────
+  const rawAudioPath = join(TMP, 'voiceover-raw.mp3');
+  writeFileSync(rawAudioPath, Buffer.from(await res.arrayBuffer()));
+  const rawDuration = getMediaDuration(rawAudioPath);
+  console.log(`         raw saved: ${rawAudioPath}  (${rawDuration.toFixed(1)}s)`);
 
-  const duration = getMediaDuration(audioPath);
-  console.log(`         saved: ${audioPath}  (${duration.toFixed(1)}s)`);
+  // ── 1b: Audio post-processing — EQ + LUFS normalisation ───────────────────
+  const processedPath = processAudio(rawAudioPath);
+
+  // ── 1c: Ambient music layer (optional) ────────────────────────────────────
+  const finalAudioSource = mixMusicUnderVoice(processedPath, rawDuration);
+
+  // Normalise to the canonical output filename the rest of the pipeline expects.
+  const audioPath = join(TMP, 'voiceover.mp3');
+  execSync(`cp "${finalAudioSource}" "${audioPath}"`);
+
+  const finalDuration = getMediaDuration(audioPath);
+  console.log(`         final : ${audioPath}  (${finalDuration.toFixed(1)}s)`);
 
   return audioPath;
 }
@@ -168,7 +296,7 @@ function normalizeWhitespace(text: string): string {
 }
 
 function countWords(text: string): number {
-  const matches = normalizeWhitespace(text).match(/\b[\p{L}\p{N}'’/\-]+\b/gu);
+  const matches = normalizeWhitespace(text).match(/\b[\p{L}\p{N}''/\-]+\b/gu);
   return matches?.length ?? 0;
 }
 
