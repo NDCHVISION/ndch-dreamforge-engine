@@ -38,39 +38,16 @@
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 import { requestJson } from './http-client.ts';
+import { loadPublishRuntimeConfig, type PublishRuntimeConfig } from './config/env.ts';
 
 const GRAPH = 'https://graph.facebook.com/v19.0';
 const POLL_EVERY = 5_000;
 const POLL_TIMEOUT = 120_000;
 
-interface PublisherConfig {
-  pageToken: string;
-  igAccountId: string;
-  appId: string;
-  appSecret: string;
-  fbPageId: string;
-}
+let publisherConfig: PublishRuntimeConfig | undefined;
 
-let publisherConfig: PublisherConfig | undefined;
-
-function requireEnv(env: NodeJS.ProcessEnv, name: string): string {
-  const rawValue = env[name];
-  if (!rawValue?.trim()) throw new Error(`Missing required env var: ${name}`);
-  return rawValue.trim();
-}
-
-function loadPublisherConfig(env: NodeJS.ProcessEnv = process.env): PublisherConfig {
-  return {
-    pageToken: requireEnv(env, 'INSTAGRAM_PAGE_TOKEN'),
-    igAccountId: requireEnv(env, 'IG_BUSINESS_ACCOUNT_ID'),
-    appId: requireEnv(env, 'META_APP_ID'),
-    appSecret: requireEnv(env, 'META_APP_SECRET'),
-    fbPageId: requireEnv(env, 'FB_PAGE_ID'),
-  };
-}
-
-function getConfig(): PublisherConfig {
-  publisherConfig ??= loadPublisherConfig(process.env);
+function getConfig(): PublishRuntimeConfig {
+  publisherConfig ??= loadPublishRuntimeConfig(process.env);
   return publisherConfig;
 }
 
@@ -274,34 +251,11 @@ export async function publishReel(opts: ReelOptions): Promise<string> {
   return publishContainer(containerId);
 }
 
-// ── Utilities ─────────────────────────────────────────────────────────────────
-
 const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
-
-function optionalBooleanEnv(name: string): boolean | undefined {
-  const value = process.env[name];
-  if (value === undefined) return undefined;
-  if (value === 'true') return true;
-  if (value === 'false') return false;
-  throw new Error(`Invalid boolean env var ${name}: ${value}`);
-}
-
-function optionalNumberEnv(name: string): number | undefined {
-  const value = process.env[name];
-  if (value === undefined || value.trim() === '') return undefined;
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed < 0) {
-    throw new Error(`Invalid numeric env var ${name}: ${value}`);
-  }
-  return parsed;
-}
 
 async function runCli(): Promise<void> {
   const config = getConfig();
-  const videoUrl = process.env.REEL_VIDEO_URL?.trim();
-  const caption = process.env.REEL_CAPTION;
-  const thumbOffset = optionalNumberEnv('REEL_THUMB_OFFSET_MS');
-  const shareToFeed = optionalBooleanEnv('REEL_SHARE_TO_FEED') ?? true;
+  const { videoUrl, caption, thumbOffset, shareToFeed } = config;
 
   if (!videoUrl) throw new Error('Missing required env var: REEL_VIDEO_URL');
 
@@ -311,7 +265,7 @@ async function runCli(): Promise<void> {
   console.log(`  video      : ${videoUrl}`);
   console.log('');
 
-  const mediaId = await publishReel({ videoUrl, caption, shareToFeed, thumbOffset });
+  const mediaId = await publishReel({ videoUrl, caption, shareToFeed: shareToFeed ?? true, thumbOffset });
   console.log('');
   console.log(`✓  Reel live — media id: ${mediaId}`);
 }

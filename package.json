@@ -2,9 +2,24 @@
   "name": "ndch-dreamforge-engine",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
-    "test": "npx --yes tsx --test reel-plan.test.ts",
-    "generate": "npx --yes tsx generate-reel.ts",
-    "publish": "npx --yes tsx publish-reel.ts"
+    "test": "tsx --test env.test.ts reel-plan.test.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "generate": "tsx generate-reel.ts",
+    "publish": "tsx publish-reel.ts"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.4",
+    "@types/node": "^25.6.2",
+    "eslint": "^9.39.4",
+    "prettier": "^3.8.3",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.59.2"
   }
 }
