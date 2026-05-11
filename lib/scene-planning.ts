@@ -58,16 +58,82 @@ export interface ScenePlanningOptions {
 
 /**
  * Compact visual continuity snapshot derived from a preceding scene.
- * Carries only the condensed visual focus so later scenes can reference
- * the world established by earlier ones without bloating the prompt.
+ * Carries only the condensed visual focus and primary subject so later scenes
+ * can reference the world established by earlier ones without bloating the prompt.
  */
 export interface SceneContinuityMemory {
   /** Compact visual focus extracted from the prior scene (≤ CONTINUITY_FOCUS_MAX_WORDS words). */
   visualFocus: string;
+  /** Dominant visual subject extracted from the prior scene (e.g. "warrior", "wolf", "throne"). */
+  primarySubject?: string;
 }
 
 /** Maximum words preserved in a continuity visual-focus anchor. */
 const CONTINUITY_FOCUS_MAX_WORDS = 8;
+
+/**
+ * Ordered list of primary visual subject patterns.
+ * Earlier entries take priority; the first match is returned.
+ */
+const PRIMARY_VISUAL_SUBJECT_PATTERNS: ReadonlyArray<{ pattern: RegExp; label: string }> = [
+  // Creatures (high visual specificity first)
+  { pattern: /\bdragon\b/i, label: 'dragon' },
+  { pattern: /\bwolf(?:ves)?\b/i, label: 'wolf' },
+  { pattern: /\bhorse\b/i, label: 'horse' },
+  { pattern: /\beagle\b/i, label: 'eagle' },
+  { pattern: /\braven\b/i, label: 'raven' },
+  { pattern: /\bcrow\b/i, label: 'crow' },
+  { pattern: /\bbear\b/i, label: 'bear' },
+  { pattern: /\btiger\b/i, label: 'tiger' },
+  { pattern: /\blion\b/i, label: 'lion' },
+  { pattern: /\bbird\b/i, label: 'bird' },
+  { pattern: /\bserpent\b/i, label: 'serpent' },
+  { pattern: /\bcreature\b/i, label: 'creature' },
+  // Named figures
+  { pattern: /\bwarrior\b/i, label: 'warrior' },
+  { pattern: /\brider\b/i, label: 'rider' },
+  { pattern: /\bguardian\b/i, label: 'guardian' },
+  { pattern: /\bsoldier\b/i, label: 'soldier' },
+  { pattern: /\bhero\b/i, label: 'hero' },
+  { pattern: /\bking\b/i, label: 'king' },
+  { pattern: /\bqueen\b/i, label: 'queen' },
+  { pattern: /\bsage\b/i, label: 'sage' },
+  { pattern: /\bsilhouette\b/i, label: 'silhouette' },
+  { pattern: /\bfigure\b/i, label: 'figure' },
+  // Architecture / landmarks
+  { pattern: /\bthrone\b/i, label: 'throne' },
+  { pattern: /\btower\b/i, label: 'tower' },
+  { pattern: /\btemple\b/i, label: 'temple' },
+  { pattern: /\bgate\b/i, label: 'gate' },
+  { pattern: /\barch\b/i, label: 'arch' },
+  { pattern: /\bcastle\b/i, label: 'castle' },
+  { pattern: /\bcitadel\b/i, label: 'citadel' },
+  { pattern: /\baltar\b/i, label: 'altar' },
+  // Objects
+  { pattern: /\bmask\b/i, label: 'mask' },
+  { pattern: /\bsword\b/i, label: 'sword' },
+  { pattern: /\bshield\b/i, label: 'shield' },
+  { pattern: /\bcrown\b/i, label: 'crown' },
+  { pattern: /\bspear\b/i, label: 'spear' },
+  { pattern: /\bstaff\b/i, label: 'staff' },
+  // Elemental / environment subjects
+  { pattern: /\bstorm\b/i, label: 'storm' },
+  { pattern: /\binferno\b/i, label: 'inferno' },
+  { pattern: /\bflames?\b/i, label: 'flame' },
+  { pattern: /\bmountain\b/i, label: 'mountain' },
+];
+
+/**
+ * Scans `text` for a dominant visual subject using a priority-ordered keyword list.
+ * Returns the label of the first match, or an empty string when no match is found.
+ */
+function extractPrimarySubject(text: string): string {
+  const normalized = normalizeWhitespace(text).toLowerCase();
+  for (const { pattern, label } of PRIMARY_VISUAL_SUBJECT_PATTERNS) {
+    if (pattern.test(normalized)) return label;
+  }
+  return '';
+}
 
 interface NarrationUnit {
   text: string;
@@ -502,11 +568,13 @@ export function extractContinuityMemory(
   narrationChunk: string,
   promptOverride?: string,
 ): SceneContinuityMemory {
+  const sourceText = promptOverride ?? narrationChunk;
   const visualFocus = limitWords(
-    compactVisualFocus(promptOverride ?? narrationChunk),
+    compactVisualFocus(sourceText),
     CONTINUITY_FOCUS_MAX_WORDS,
   );
-  return { visualFocus };
+  const subject = extractPrimarySubject(sourceText);
+  return { visualFocus, ...(subject ? { primarySubject: subject } : {}) };
 }
 
 export function buildSegmentPrompt(
@@ -529,7 +597,12 @@ export function buildSegmentPrompt(
     clipIndex > 0 && continuityMemory?.visualFocus
       ? ` Prior visual: ${continuityMemory.visualFocus}.`
       : '';
-  const continuityDirective = `${directives.continuity}${continuityAnchor}`;
+  // Also carry the primary subject forward so the same main subject is retained.
+  const subjectAnchor =
+    clipIndex > 0 && continuityMemory?.primarySubject
+      ? ` Subject: ${continuityMemory.primarySubject}.`
+      : '';
+  const continuityDirective = `${directives.continuity}${continuityAnchor}${subjectAnchor}`;
 
   const promptSuffix = [
     `${sceneCue(clipIndex, totalClips)}.`,
