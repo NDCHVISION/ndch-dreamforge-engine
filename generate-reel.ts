@@ -45,6 +45,10 @@ import {
   normalizeWhitespace,
   planNarrationScenes,
 } from './lib/scene-planning.ts';
+import {
+  type SubtitleCue,
+  buildFallbackSubtitleCues,
+} from './lib/subtitles.ts';
 
 const DEFAULT_VOICE_ID           = ENGINE_DEFAULTS.defaultVoiceId;
 const DEFAULT_ELEVENLABS_MODEL   = ENGINE_DEFAULTS.defaultModelId;
@@ -584,12 +588,6 @@ async function uploadToGitHubRelease(videoPath: string, subtitlePath?: string): 
   return { videoUrl, subtitleUrl };
 }
 
-interface SubtitleCue {
-  startSeconds: number;
-  endSeconds: number;
-  text: string;
-}
-
 function formatSrtTimestamp(seconds: number, contextLabel: string): string {
   if (seconds < 0) {
     throw new Error(`Subtitle timestamp cannot be negative (${contextLabel}): ${seconds}`);
@@ -617,20 +615,7 @@ function buildSubtitleCues(plan: ResolvedProductionPlan, sceneTimeline: SceneAll
     );
   if (cuesFromSegments.length > 0) return cuesFromSegments;
 
-  let cursor = 0;
-  return sceneTimeline
-    .map(entry => {
-      const duration = entry.intendedNarrationDurationSecs ?? entry.estimatedNarrationSecs;
-      const startSeconds = cursor;
-      const endSeconds = cursor + Math.max(0.8, duration);
-      cursor = endSeconds;
-      return {
-        startSeconds,
-        endSeconds,
-        text: normalizeWhitespace(entry.narrationText),
-      } satisfies SubtitleCue;
-    })
-    .filter(cue => cue.text.length > 0);
+  return buildFallbackSubtitleCues(sceneTimeline);
 }
 
 function writeSubtitleSidecar(plan: ResolvedProductionPlan, sceneTimeline: SceneAllocationEntry[]): string | undefined {
