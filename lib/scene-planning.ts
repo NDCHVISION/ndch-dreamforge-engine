@@ -214,6 +214,178 @@ interface RolePromptDirectives {
   tone: string;
 }
 
+type SceneContentTendency =
+  | 'transformation'
+  | 'confrontation'
+  | 'ascent'
+  | 'stillness'
+  | 'revelation'
+  | 'neutral';
+
+interface SceneContentProfile {
+  tendencies: SceneContentTendency[];
+  primary: SceneContentTendency;
+}
+
+interface ContentPromptDirectives {
+  composition: string;
+  motion: string;
+  atmosphere: string;
+  tone: string;
+}
+
+const NEUTRAL_CONTENT_DIRECTIVES: ContentPromptDirectives = {
+  composition: 'Keep composition readable and cinematic.',
+  motion: 'Maintain purposeful cinematic motion.',
+  atmosphere: 'Preserve coherent atmosphere and depth.',
+  tone: 'Keep emotional intent clear and focused.',
+};
+
+const CONTENT_TENDENCY_PATTERNS: Record<Exclude<SceneContentTendency, 'neutral'>, RegExp[]> = {
+  transformation: [
+    /\btransform(?:ation|ed|ing|s)?\b/i,
+    /\bbecom(?:e|es|ing)\b/i,
+    /\bemerg(?:e|es|ing|ence)\b/i,
+    /\bevolv(?:e|es|ing)\b/i,
+    /\bmetamorph(?:osis|ic)?\b/i,
+    /\bunfold(?:s|ing)?\b/i,
+    /\breborn\b/i,
+  ],
+  confrontation: [
+    /\bconfront(?:ation|ing)?\b/i,
+    /\bstruggl(?:e|es|ing)\b/i,
+    /\bresist(?:ance|ing|s)?\b/i,
+    /\bclash(?:es|ing)?\b/i,
+    /\bbattle(?:s|d|ing)?\b/i,
+    /\bobstacle(?:s)?\b/i,
+    /\bpressure\b/i,
+    /\bforce\b/i,
+  ],
+  ascent: [
+    /\bascen(?:d|ds|ding|t)\b/i,
+    /\brise(?:s|n|ing)?\b/i,
+    /\bclimb(?:s|ed|ing)?\b/i,
+    /\bsoar(?:s|ed|ing)?\b/i,
+    /\bupward\b/i,
+    /\bbreakthrough\b/i,
+    /\bexpand(?:s|ed|ing|ion)?\b/i,
+    /\belevat(?:e|es|ed|ing)\b/i,
+  ],
+  stillness: [
+    /\bstill(?:ness)?\b/i,
+    /\bcalm\b/i,
+    /\bquiet\b/i,
+    /\b(?:silent|silence)\b/i,
+    /\breflect(?:ion|ive|ing)?\b/i,
+    /\bmeditat(?:e|ion|ive)\b/i,
+    /\brest\b/i,
+    /\bpeace(?:ful)?\b/i,
+  ],
+  revelation: [
+    /\breveal(?:s|ed|ing)?\b/i,
+    /\brevelation\b/i,
+    /\bclarity\b/i,
+    /\bclear(?:ly)?\b/i,
+    /\btruth\b/i,
+    /\bunveil(?:s|ed|ing)?\b/i,
+    /\bunderstand(?:ing)?\b/i,
+    /\blight\b/i,
+  ],
+};
+
+const CONTENT_TENDENCY_KEYS = [
+  'transformation',
+  'confrontation',
+  'ascent',
+  'stillness',
+  'revelation',
+] as const;
+
+function combineDirective(roleDirective: string, contentDirective: string): string {
+  const rolePart = roleDirective.trim();
+  const contentPart = contentDirective.trim();
+
+  if (!rolePart) return contentPart;
+  if (!contentPart) return rolePart;
+  const normalizedRolePart = /[.!?]$/.test(rolePart) ? rolePart : `${rolePart}.`;
+  return `${normalizedRolePart} ${contentPart}`;
+}
+
+function inferSceneContentProfile(sceneFocus: string, narrationChunk: string): SceneContentProfile {
+  const contentText = normalizeWhitespace([sceneFocus, narrationChunk].map(part => part.trim()).filter(Boolean).join(' '));
+  if (!contentText) {
+    return {
+      tendencies: ['neutral'],
+      primary: 'neutral',
+    };
+  }
+
+  const scoredTendencies = CONTENT_TENDENCY_KEYS
+    .map(tendency => ({
+      tendency,
+      score: CONTENT_TENDENCY_PATTERNS[tendency]
+        .reduce((total, pattern) => total + (pattern.test(contentText) ? 1 : 0), 0),
+    }))
+    .filter(entry => entry.score > 0)
+    .sort((left, right) => right.score - left.score);
+
+  if (scoredTendencies.length === 0) {
+    return {
+      tendencies: ['neutral'],
+      primary: 'neutral',
+    };
+  }
+
+  return {
+    tendencies: scoredTendencies.map(entry => entry.tendency),
+    primary: scoredTendencies[0].tendency,
+  };
+}
+
+function contentPromptDirectives(profile: SceneContentProfile): ContentPromptDirectives {
+  switch (profile.primary) {
+    case 'transformation':
+      return {
+        composition: 'Frames morph from one state into the next.',
+        motion: 'Metamorphic motion with fluid visual change.',
+        atmosphere: 'Emergent textures and light building through the frame.',
+        tone: 'Emotion shifts from strain into becoming.',
+      };
+    case 'confrontation':
+      return {
+        composition: 'Opposing forces collide on sharp lines and contrast.',
+        motion: 'Aggressive surges, impacts, and resisted momentum.',
+        atmosphere: 'Charged air, hard contrast, visible friction.',
+        tone: 'Defiant and high-stakes under pressure.',
+      };
+    case 'ascent':
+      return {
+        composition: 'Vertical framing with widening scale and lift.',
+        motion: 'Upward drive and breakthrough acceleration.',
+        atmosphere: 'Air opens, horizon expands, luminous lift.',
+        tone: 'Triumphant momentum toward release.',
+      };
+    case 'stillness':
+      return {
+        composition: 'Centered restraint with breathing negative space.',
+        motion: 'Slow drift or near-still holds.',
+        atmosphere: 'Soft light and quiet, meditative air.',
+        tone: 'Reflective, grounded, emotionally composed.',
+      };
+    case 'revelation':
+      return {
+        composition: 'Composition clears toward legible truth.',
+        motion: 'Motion parts obscurity then settles.',
+        atmosphere: 'Light opens surfaces as haze recedes.',
+        tone: 'Ambiguity resolves into lucid conviction.',
+      };
+    case 'neutral':
+      return NEUTRAL_CONTENT_DIRECTIVES;
+    default:
+      return NEUTRAL_CONTENT_DIRECTIVES;
+  }
+}
+
 function rolePromptDirectives(role: SceneRole): RolePromptDirectives {
   if (role === 'opening') {
     return {
@@ -265,7 +437,18 @@ export function buildSegmentPrompt(
   const role = sceneRoleForIndex(clipIndex, totalClips);
   const directives = rolePromptDirectives(role);
   const sceneFocus = limitWords(compactVisualFocus(promptOverride ?? narrationChunk), 24);
-  const promptSuffix = `${sceneCue(clipIndex, totalClips)}. ${directives.roleLine} Composition: ${directives.composition} Motion: ${directives.motion} Lighting/atmosphere: ${directives.atmosphere} Continuity: ${directives.continuity} Tone: ${directives.tone} Visual focus: ${sceneFocus}`;
+  const contentProfile = inferSceneContentProfile(sceneFocus, narrationChunk);
+  const contentDirectives = contentPromptDirectives(contentProfile);
+  const promptSuffix = [
+    `${sceneCue(clipIndex, totalClips)}.`,
+    directives.roleLine,
+    `Composition: ${combineDirective(directives.composition, contentDirectives.composition)}`,
+    `Motion: ${combineDirective(directives.motion, contentDirectives.motion)}`,
+    `Lighting/atmosphere: ${combineDirective(directives.atmosphere, contentDirectives.atmosphere)}`,
+    `Continuity: ${directives.continuity}`,
+    `Tone: ${combineDirective(directives.tone, contentDirectives.tone)}`,
+    `Visual focus: ${sceneFocus}`,
+  ].join(' ');
   const normalizedAnchor = normalizeWhitespace(basePrompt).replace(/[.?!,;:\s]+$/, '');
   const maxAnchorLength = Math.max(0, MAX_RUNWAY_PROMPT_CHARS - promptSuffix.length - 2);
   const promptAnchor = normalizedAnchor.slice(0, maxAnchorLength);
