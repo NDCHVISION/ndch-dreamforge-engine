@@ -9,46 +9,22 @@
     "target_duration_seconds": 40
   },
   "visual_prompt": {
-    "primary_prompt": "A dark cinematic forge of identity. A masculine figure in deep shadow is reshaped by furnace heat, spectral hammer blows, molten gold light, crimson sparks, black tempered steel, and fluid rhythmic transitions. High contrast, stoic, mythic, hyper-detailed, no readable text."
+    "primary_prompt": "Dark cinematic forge. Masculine figure on anvil reshaped by furnace heat, spectral hammer, molten gold light, crimson sparks, black tempered steel. High contrast, stoic, mythic, no readable text."
   },
   "voiceover": {
     "script": {
       "full_text": "You think the fire is trying to kill you. The fire is just making you soft enough to be reshaped. Without the heat, you are just a useless slab of iron. The pain is the craftsman. The pressure is the blueprint. Stop asking for the furnace to cool down. You were born to be forged. Stand still, and let the hammer finish its work.",
       "segments": [
         {
-          "text": "You think the fire is trying to kill you.",
-          "visual_prompt": "Opening impact shot. A masculine silhouette in deep shadow inside a black forge chamber. Crimson sparks explode toward camera from a violent hammer strike. Heart core glows molten gold. High contrast, immediate threat, cinematic heat distortion.",
+          "text": "You think the fire is trying to kill you. The fire is just making you soft enough to be reshaped. Without the heat, you are just a useless slab of iron. The pain is the craftsman. The pressure is the blueprint.",
+          "visual_prompt": "Dark forge interior. Masculine silhouette on anvil. Spectral hammer strikes, crimson sparks burst toward camera. Skin softens into glowing molten metal under furnace heat. Slow push-in, cinematic, high contrast.",
           "timestamp_start": "0:00",
-          "timestamp_end": "0:05"
+          "timestamp_end": "0:20"
         },
         {
-          "text": "The fire is just making you soft enough to be reshaped. Without the heat, you are just a useless slab of iron.",
-          "visual_prompt": "The figure stands still inside furnace light as skin softens into glowing metal under intense heat. Spectral hammer and anvil imagery emerge through smoke. Body appears half-human, half-molten iron. Slow transformation, fluid molten textures, stoic expression, no flinching.",
-          "timestamp_start": "0:05",
-          "timestamp_end": "0:16"
-        },
-        {
-          "text": "The pain is the craftsman. The pressure is the blueprint.",
-          "visual_prompt": "Mid-sequence revelation. Repeated hammer strikes shape the figure with rhythmic precision. Each impact sharpens jawline, shoulders, and chest into black tempered steel. Blueprint-like glowing fracture lines briefly appear in crimson and gold, then fuse into the body.",
-          "timestamp_start": "0:16",
-          "timestamp_end": "0:25"
-        },
-        {
-          "text": "Stop asking for the furnace to cool down.",
-          "visual_prompt": "The forge burns brighter. Close-up on molten eyes staring forward without fear. Heat waves ripple across steel skin. The environment feels punishing but sacred, like ritual transformation under extreme pressure.",
-          "timestamp_start": "0:25",
-          "timestamp_end": "0:31"
-        },
-        {
-          "text": "You were born to be forged.",
-          "visual_prompt": "The figure rises taller and more defined, now nearly fully transformed into dark steel with molten gold seams. Camera slowly pushes in. Presence feels mythic, disciplined, inevitable.",
-          "timestamp_start": "0:31",
-          "timestamp_end": "0:36"
-        },
-        {
-          "text": "Stand still, and let the hammer finish its work.",
-          "visual_prompt": "Closing tableau. Final hammer descends, but the figure catches it with one hand. Heat fades. Sparks settle. The body becomes cold, hard, polished black steel with gold edge light. Resolved final image of mastery, endurance, and completion.",
-          "timestamp_start": "0:36",
+          "text": "Stop asking for the furnace to cool down. You were born to be forged. Stand still, and let the hammer finish its work.",
+          "visual_prompt": "Close-up on molten orange eyes, no fear. Heat waves over hardened steel skin. Hammer falls, sparks scatter, figure rises as blackened warrior with gold seams. Still final frame, mythic, disciplined.",
+          "timestamp_start": "0:20",
           "timestamp_end": "0:40"
         }
       ]
@@ -62,17 +38,5 @@
         "speed": 0.92
       }
     }
-  },
-  "subtitle_config": {
-    "color": "#F5F2EB",
-    "highlight": "#DC143C",
-    "peak": "#C6A94F"
-  },
-  "instagram_config": {
-    "caption": {
-      "full_caption": "Forged, not born. 🔥\n\nThe pressure you're feeling? That's the shaping. Don't run from the heat.\n\nSave this for your next workout or late-night grind.\n\n#discipline #warriormindset #stoic #grit #ndch"
-    },
-    "cover_frame": "0:05",
-    "share_to_feed": true
   }
 }
