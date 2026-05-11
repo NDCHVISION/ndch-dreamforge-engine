@@ -61,7 +61,10 @@ const DEFAULT_ELEVENLABS_MODEL   = ENGINE_DEFAULTS.defaultModelId;
 const DEFAULT_OUTPUT_FORMAT      = 'mp3_44100_192';
 const TMP                        = tmpdir();
 const MAX_REEL_SECS              = ENGINE_DEFAULTS.maxDurationSeconds;
-const RUNWAY_TIMEOUT_MS          = 300_000;
+const RUNWAY_TIMEOUT_MS          = 300_000;  // budget for active (non-throttled) generation
+const RUNWAY_THROTTLE_SLEEP_MS   = 30_000;   // poll interval when task is THROTTLED
+const RUNWAY_POLL_SLEEP_MS       = 10_000;   // poll interval when task is RUNNING/PENDING
+const RUNWAY_MAX_WAIT_MS         = 900_000;  // hard wall-clock cap (15 min) including throttle time
 const MUSIC_ASSET_RELATIVE_PATH  = 'assets/ambient-drone.mp3';
 const DEFAULT_HTTP_TIMEOUT_MS    = 45_000;
 const MANAGED_RELEASE_TAG        = 'reel-latest';
@@ -276,12 +279,16 @@ async function generateRunwayClip(scene: ReelScenePlan, totalClips: number): Pro
   });
   console.log(`         clip ${scene.clipIndex + 1}/${totalClips}: task id ${id}`);
 
-  // Poll up to 5 minutes
-  const deadline = Date.now() + RUNWAY_TIMEOUT_MS;
-  let attempt    = 0;
+  // Active-generation budget: time we allow the task to spend in a non-throttled state.
+  // THROTTLED periods extend this deadline so they don't eat into the generation budget.
+  // A hard wall-clock cap prevents infinite loops when throttling is sustained.
+  let deadline          = Date.now() + RUNWAY_TIMEOUT_MS;
+  const hardDeadline    = Date.now() + RUNWAY_MAX_WAIT_MS;
+  let attempt           = 0;
 
-  while (Date.now() < deadline) {
-    await sleep(10_000);
+  while (Date.now() < deadline && Date.now() < hardDeadline) {
+    const iterationStart = Date.now();
+    await sleep(RUNWAY_POLL_SLEEP_MS);
     attempt++;
 
     const task = await requestJson<{
@@ -318,9 +325,23 @@ async function generateRunwayClip(scene: ReelScenePlan, totalClips: number): Pro
     if (task.status === 'FAILED') {
       throw new Error(`Runway task failed: ${task.failure ?? 'unknown reason'}`);
     }
+
+    if (task.status === 'THROTTLED') {
+      // Extend the active-generation deadline by the actual elapsed time so that
+      // throttle wait time doesn't count against the generation budget.
+      // Also sleep longer between polls to be a good API citizen.
+      await sleep(RUNWAY_THROTTLE_SLEEP_MS);
+      deadline += Date.now() - iterationStart;
+    }
   }
 
-  throw new Error(`Runway task ${id} timed out after ${RUNWAY_TIMEOUT_MS / 1000}s — try a shorter prompt or retry`);
+  if (Date.now() >= hardDeadline) {
+    throw new Error(
+      `Runway task ${id} exceeded the ${RUNWAY_MAX_WAIT_MS / 60_000} min wall-clock cap — ` +
+      `check your Runway quota or retry later`
+    );
+  }
+  throw new Error(`Runway task ${id} timed out after ${RUNWAY_TIMEOUT_MS / 1000}s of active generation — try a shorter prompt or retry`);
 }
 
 function stitchVideoClips(clipPaths: string[]): string {
