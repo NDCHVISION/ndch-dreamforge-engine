@@ -225,6 +225,8 @@ type SceneContentTendency =
 interface SceneContentProfile {
   tendencies: SceneContentTendency[];
   primary: SceneContentTendency;
+  /** Score of the second-ranked tendency; 0 when only one tendency is detected. */
+  secondaryScore: number;
 }
 
 interface ContentPromptDirectives {
@@ -301,6 +303,45 @@ const CONTENT_TENDENCY_KEYS = [
   'revelation',
 ] as const;
 
+/**
+ * Minimum score the second-ranked tendency must reach before blended directives
+ * are applied. Requires at least two independent keyword matches so that a single
+ * incidental word cannot trigger blending.
+ */
+const MIN_SECONDARY_BLEND_SCORE = 2;
+
+/**
+ * Compact blended directives for pairs of strongly-detected tendencies.
+ * Keys are the two tendency names sorted alphabetically and joined with "+".
+ * Only defined for combinations that benefit meaningfully from a blended voice.
+ */
+const BLENDED_CONTENT_DIRECTIVES: Record<string, ContentPromptDirectives> = {
+  'ascent+confrontation': {
+    composition: 'Resisted upward breakthrough—force drives toward expanding elevation.',
+    motion: 'Surge against resistance accelerating into vertical lift.',
+    atmosphere: 'Charged friction breaking open into luminous widening space.',
+    tone: 'Defiant force breaking through into triumphant release.',
+  },
+  'revelation+stillness': {
+    composition: 'Quiet frame opening toward legible calm truth.',
+    motion: 'Near-still drift as obscurity gently parts.',
+    atmosphere: 'Soft diffuse light growing clear and unhurried.',
+    tone: 'Meditative stillness resolving into lucid conviction.',
+  },
+  'revelation+transformation': {
+    composition: 'Metamorphic frames clearing into emergent clarity.',
+    motion: 'Fluid becoming that settles into revealed truth.',
+    atmosphere: 'Evolving light builds until form is fully legible.',
+    tone: 'Becoming resolves into lucid clarity.',
+  },
+  'ascent+transformation': {
+    composition: 'Evolving frames expand upward into widening scale.',
+    motion: 'Metamorphic lift carrying vertical momentum.',
+    atmosphere: 'Emergent textures open as horizon expands luminously.',
+    tone: 'Becoming accelerates into triumphant upward release.',
+  },
+};
+
 function combineDirective(roleDirective: string, contentDirective: string): string {
   const rolePart = roleDirective.trim();
   const contentPart = contentDirective.trim();
@@ -317,6 +358,7 @@ function inferSceneContentProfile(sceneFocus: string, narrationChunk: string): S
     return {
       tendencies: ['neutral'],
       primary: 'neutral',
+      secondaryScore: 0,
     };
   }
 
@@ -333,16 +375,28 @@ function inferSceneContentProfile(sceneFocus: string, narrationChunk: string): S
     return {
       tendencies: ['neutral'],
       primary: 'neutral',
+      secondaryScore: 0,
     };
   }
 
   return {
     tendencies: scoredTendencies.map(entry => entry.tendency),
     primary: scoredTendencies[0].tendency,
+    secondaryScore: scoredTendencies.length >= 2 ? scoredTendencies[1].score : 0,
   };
 }
 
 function contentPromptDirectives(profile: SceneContentProfile): ContentPromptDirectives {
+  // When two strong tendencies are detected, use a compact blended directive
+  // instead of defaulting to primary only. Sorting the pair alphabetically gives
+  // a canonical key regardless of which tendency ranked first.
+  const nonNeutral = profile.tendencies.filter(t => t !== 'neutral') as Exclude<SceneContentTendency, 'neutral'>[];
+  if (nonNeutral.length >= 2 && profile.secondaryScore >= MIN_SECONDARY_BLEND_SCORE) {
+    const blendKey = [nonNeutral[0], nonNeutral[1]].sort().join('+');
+    const blended = BLENDED_CONTENT_DIRECTIVES[blendKey];
+    if (blended) return blended;
+  }
+
   switch (profile.primary) {
     case 'transformation':
       return {

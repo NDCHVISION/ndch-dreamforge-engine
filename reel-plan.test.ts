@@ -501,3 +501,91 @@ test('planNarrationScenes preserves short declarative closing line as final beat
   assert.equal(scenes[1].narrationChunk, 'We win.');
   assert.equal(scenes[1].role, 'closing');
 });
+
+test('buildSegmentPrompt adapts to ascent-oriented content', () => {
+  const prompt = buildSegmentPrompt(
+    'Cinematic sky gateway',
+    'We rise and soar upward, ascending toward breakthrough elevation.',
+    1,
+    3
+  );
+
+  assert.match(prompt, /Vertical framing with widening scale/);
+  assert.match(prompt, /Upward drive and breakthrough acceleration/);
+  assert.match(prompt, /luminous lift/);
+  assert.match(prompt, /Triumphant momentum/);
+});
+
+test('buildSegmentPrompt blends confrontation and ascent into resisted-breakthrough language', () => {
+  const prompt = buildSegmentPrompt(
+    'Cinematic storm arena',
+    'We clash against force and rise upward through breakthrough pressure.',
+    1,
+    3
+  );
+
+  assert.match(prompt, /Resisted upward breakthrough/);
+  assert.match(prompt, /Surge against resistance/);
+  assert.match(prompt, /Defiant force breaking/);
+  // Must not fall back to single-tendency language
+  assert.doesNotMatch(prompt, /Opposing forces collide/);
+  assert.doesNotMatch(prompt, /Vertical framing with widening scale/);
+});
+
+test('buildSegmentPrompt blends stillness and revelation into calm-clarity language', () => {
+  const prompt = buildSegmentPrompt(
+    'Cinematic misty valley',
+    'In quiet stillness the truth is revealed with clarity.',
+    1,
+    3
+  );
+
+  assert.match(prompt, /Quiet frame opening toward legible calm truth/);
+  assert.match(prompt, /Near-still drift/);
+  assert.match(prompt, /Meditative stillness resolving/);
+  // Must not fall back to single-tendency language
+  assert.doesNotMatch(prompt, /Centered restraint with breathing negative space/);
+  assert.doesNotMatch(prompt, /Composition clears toward legible truth/);
+});
+
+test('buildSegmentPrompt blends transformation and revelation into becoming-clarity language', () => {
+  const prompt = buildSegmentPrompt(
+    'Cinematic metamorphic chamber',
+    'We transform, emerge and evolve into clarity as truth becomes visible.',
+    1,
+    3
+  );
+
+  assert.match(prompt, /Metamorphic frames clearing into emergent clarity/);
+  assert.match(prompt, /Fluid becoming/);
+  assert.match(prompt, /Becoming resolves into lucid clarity/);
+  // Must not fall back to single-tendency language
+  assert.doesNotMatch(prompt, /Frames morph from one state into the next/);
+  assert.doesNotMatch(prompt, /Composition clears toward legible truth/);
+});
+
+test('buildSegmentPrompt keeps role language visible in blended confrontation-ascent prompts', () => {
+  const prompt = buildSegmentPrompt(
+    'Cinematic storm arena',
+    'We clash against force and rise upward through breakthrough pressure.',
+    0,
+    3
+  );
+
+  // Role structure is intact
+  assert.match(prompt, /Opening scene/);
+  assert.match(prompt, /Hook instantly with a striking first image/);
+  // Blended content is also present
+  assert.match(prompt, /Resisted upward breakthrough/);
+});
+
+test('buildSegmentPrompt blended prompts stay under the runway prompt length limit', () => {
+  const prompt = buildSegmentPrompt(
+    'Cinematic storm arena at the edge of collapse with neon fractals and temporal rifts',
+    'We clash against force and rise upward through breakthrough pressure into expansion.',
+    1,
+    3
+  );
+
+  assert.ok(prompt.length <= 1000, `Expected prompt length ≤ 1000, got ${prompt.length}`);
+});
