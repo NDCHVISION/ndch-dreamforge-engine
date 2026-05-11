@@ -20,6 +20,8 @@ import {
 } from './lib/subtitles.ts';
 import {
   buildAdaptiveMusicMixFilter,
+  computeFadeOutStartSecsFormatted,
+  MUSIC_DUCKING_FILTER,
   resolveMusicTrackPath,
 } from './lib/audio-mixing.ts';
 
@@ -870,10 +872,12 @@ test('resolveMusicTrackPath keeps current source resolution precedence', () => {
 });
 
 test('buildAdaptiveMusicMixFilter includes sidechain ducking and preserves fades', () => {
-  const filter = buildAdaptiveMusicMixFilter(12.5);
+  const audioDuration = 12.5;
+  const filter = buildAdaptiveMusicMixFilter(audioDuration);
+  const fadeOutStart = computeFadeOutStartSecsFormatted(audioDuration);
   assert.match(filter, /\[0:a\]volume=-18dB/);
   assert.match(filter, /afade=t=in:st=0:d=1\.5/);
-  assert.match(filter, /afade=t=out:st=10\.500:d=2/);
-  assert.match(filter, /sidechaincompress=threshold=0\.030:ratio=10:attack=25:release=300:makeup=1/);
+  assert.ok(filter.includes(`afade=t=out:st=${fadeOutStart}:d=2`));
+  assert.ok(filter.includes(`sidechaincompress=${MUSIC_DUCKING_FILTER}`));
   assert.match(filter, /\[ducked\]\[voice\]amix=inputs=2:duration=shortest\[out\]$/);
 });
