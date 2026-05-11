@@ -421,6 +421,7 @@ test('buildSegmentPrompt adapts to stillness-oriented content', () => {
   assert.match(prompt, /Centered restraint with breathing negative space/);
   assert.match(prompt, /Slow drift or near-still holds/);
   assert.match(prompt, /meditative air/);
+  assert.match(prompt, /Reflective, grounded, emotionally composed/);
 });
 
 test('buildSegmentPrompt adapts to revelation-oriented content', () => {
@@ -432,7 +433,9 @@ test('buildSegmentPrompt adapts to revelation-oriented content', () => {
   );
 
   assert.match(prompt, /Composition clears toward legible truth/);
+  assert.match(prompt, /Motion parts obscurity then settles/);
   assert.match(prompt, /Light opens surfaces as haze recedes/);
+  assert.match(prompt, /Ambiguity resolves into lucid conviction/);
 });
 
 test('buildSegmentPrompt keeps role language visible while adapting to content', () => {

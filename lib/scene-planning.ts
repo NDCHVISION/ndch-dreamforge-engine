@@ -234,6 +234,13 @@ interface ContentPromptDirectives {
   tone: string;
 }
 
+const NEUTRAL_CONTENT_DIRECTIVES: ContentPromptDirectives = {
+  composition: 'Keep composition readable and cinematic.',
+  motion: 'Maintain purposeful cinematic motion.',
+  atmosphere: 'Preserve coherent atmosphere and depth.',
+  tone: 'Keep emotional intent clear and focused.',
+};
+
 const CONTENT_TENDENCY_PATTERNS: Record<Exclude<SceneContentTendency, 'neutral'>, RegExp[]> = {
   transformation: [
     /\btransform(?:ation|ed|ing|s)?\b/i,
@@ -286,21 +293,38 @@ const CONTENT_TENDENCY_PATTERNS: Record<Exclude<SceneContentTendency, 'neutral'>
   ],
 };
 
+const CONTENT_TENDENCY_KEYS = [
+  'transformation',
+  'confrontation',
+  'ascent',
+  'stillness',
+  'revelation',
+] as const;
+
+function combineDirective(roleDirective: string, contentDirective: string): string {
+  const rolePart = roleDirective.trim();
+  const contentPart = contentDirective.trim();
+
+  if (!rolePart) return contentPart;
+  if (!contentPart) return rolePart;
+  const normalizedRolePart = /[.!?]$/.test(rolePart) ? rolePart : `${rolePart}.`;
+  return `${normalizedRolePart} ${contentPart}`;
+}
+
 function inferSceneContentProfile(sceneFocus: string, narrationChunk: string): SceneContentProfile {
-  const signal = normalizeWhitespace(`${sceneFocus} ${narrationChunk}`);
-  if (!signal) {
+  const contentText = normalizeWhitespace([sceneFocus, narrationChunk].map(part => part.trim()).filter(Boolean).join(' '));
+  if (!contentText) {
     return {
       tendencies: ['neutral'],
       primary: 'neutral',
     };
   }
 
-  const scoredTendencies = (Object.entries(CONTENT_TENDENCY_PATTERNS) as Array<
-    [Exclude<SceneContentTendency, 'neutral'>, RegExp[]]
-  >)
-    .map(([tendency, patterns]) => ({
+  const scoredTendencies = CONTENT_TENDENCY_KEYS
+    .map(tendency => ({
       tendency,
-      score: patterns.reduce((total, pattern) => total + (pattern.test(signal) ? 1 : 0), 0),
+      score: CONTENT_TENDENCY_PATTERNS[tendency]
+        .reduce((total, pattern) => total + (pattern.test(contentText) ? 1 : 0), 0),
     }))
     .filter(entry => entry.score > 0)
     .sort((left, right) => right.score - left.score);
@@ -355,13 +379,10 @@ function contentPromptDirectives(profile: SceneContentProfile): ContentPromptDir
         atmosphere: 'Light opens surfaces as haze recedes.',
         tone: 'Ambiguity resolves into lucid conviction.',
       };
+    case 'neutral':
+      return NEUTRAL_CONTENT_DIRECTIVES;
     default:
-      return {
-        composition: 'Keep composition readable and cinematic.',
-        motion: 'Maintain purposeful cinematic motion.',
-        atmosphere: 'Preserve coherent atmosphere and depth.',
-        tone: 'Keep emotional intent clear and focused.',
-      };
+      return NEUTRAL_CONTENT_DIRECTIVES;
   }
 }
 
@@ -418,7 +439,16 @@ export function buildSegmentPrompt(
   const sceneFocus = limitWords(compactVisualFocus(promptOverride ?? narrationChunk), 24);
   const contentProfile = inferSceneContentProfile(sceneFocus, narrationChunk);
   const contentDirectives = contentPromptDirectives(contentProfile);
-  const promptSuffix = `${sceneCue(clipIndex, totalClips)}. ${directives.roleLine} Composition: ${directives.composition} ${contentDirectives.composition} Motion: ${directives.motion} ${contentDirectives.motion} Lighting/atmosphere: ${directives.atmosphere} ${contentDirectives.atmosphere} Continuity: ${directives.continuity} Tone: ${directives.tone} ${contentDirectives.tone} Visual focus: ${sceneFocus}`;
+  const promptSuffix = [
+    `${sceneCue(clipIndex, totalClips)}.`,
+    directives.roleLine,
+    `Composition: ${combineDirective(directives.composition, contentDirectives.composition)}`,
+    `Motion: ${combineDirective(directives.motion, contentDirectives.motion)}`,
+    `Lighting/atmosphere: ${combineDirective(directives.atmosphere, contentDirectives.atmosphere)}`,
+    `Continuity: ${directives.continuity}`,
+    `Tone: ${combineDirective(directives.tone, contentDirectives.tone)}`,
+    `Visual focus: ${sceneFocus}`,
+  ].join(' ');
   const normalizedAnchor = normalizeWhitespace(basePrompt).replace(/[.?!,;:\s]+$/, '');
   const maxAnchorLength = Math.max(0, MAX_RUNWAY_PROMPT_CHARS - promptSuffix.length - 2);
   const promptAnchor = normalizedAnchor.slice(0, maxAnchorLength);
