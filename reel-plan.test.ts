@@ -1000,3 +1000,173 @@ test('planNarrationScenes carries forward continuity memory between scenes', () 
   assert.match(scenes[1].promptText, /Prior visual:/);
   assert.match(scenes[1].promptText, /storm-forged silhouettes electric haze/);
 });
+
+// ── Primary visual subject persistence tests ──────────────────────────────────
+
+test('extractContinuityMemory extracts primarySubject for known visual subject keyword', () => {
+  const memory = extractContinuityMemory(
+    'A lone warrior stands at the edge of a stormy cliff.',
+    'lone warrior storm cliff',
+  );
+  assert.equal(memory.primarySubject, 'warrior');
+});
+
+test('extractContinuityMemory extracts creature subjects', () => {
+  const wolfMemory = extractContinuityMemory('A wolf crosses the frozen tundra.', 'wolf frozen tundra');
+  assert.equal(wolfMemory.primarySubject, 'wolf');
+
+  const horseMemory = extractContinuityMemory('Rider on horseback.', 'horse rider');
+  assert.equal(horseMemory.primarySubject, 'horse');
+});
+
+test('extractContinuityMemory extracts architecture subjects', () => {
+  const memory = extractContinuityMemory(
+    'The ancient throne rests in a crumbling hall.',
+    'throne crumbling hall',
+  );
+  assert.equal(memory.primarySubject, 'throne');
+});
+
+test('extractContinuityMemory returns no primarySubject when no known keyword matches', () => {
+  const memory = extractContinuityMemory(
+    'ascending ethereal haze fracture.',
+    'ascending fractured light',
+  );
+  assert.equal(memory.primarySubject, undefined);
+});
+
+test('buildSegmentPrompt first scene has no subject-persistence language', () => {
+  const prompt = buildSegmentPrompt(
+    'Dark cinematic city under stormlight',
+    'We begin now.',
+    0,
+    3,
+    undefined,
+    undefined,
+  );
+
+  assert.doesNotMatch(prompt, /Prior visual:/);
+  assert.doesNotMatch(prompt, /Subject:/);
+});
+
+test('buildSegmentPrompt later scene includes primary-subject cue from prior context', () => {
+  const memory = extractContinuityMemory(
+    'A lone warrior stands in dark storm.',
+    'lone warrior dark storm',
+  );
+  const prompt = buildSegmentPrompt(
+    'Dark cinematic world',
+    'We rise together.',
+    1,
+    3,
+    undefined,
+    memory,
+  );
+
+  assert.match(prompt, /Subject:/);
+  assert.match(prompt, /warrior/);
+});
+
+test('buildSegmentPrompt primary-subject does not duplicate full prior prompt text', () => {
+  const memory = extractContinuityMemory(
+    'A lone warrior stands in dark storm beneath electric fractured light with deep blue haze.',
+    'lone warrior storm electric fractured light deep blue haze',
+  );
+  const prompt = buildSegmentPrompt(
+    'Dark cinematic world',
+    'We rise together.',
+    1,
+    3,
+    undefined,
+    memory,
+  );
+
+  // Subject cue must be compact — must not reproduce the full prior prompt text.
+  assert.match(prompt, /Subject: warrior\./);
+  assert.doesNotMatch(prompt, /lone warrior storm electric fractured light deep blue haze/);
+});
+
+test('buildSegmentPrompt primary-subject and role-aware language coexist', () => {
+  const memory = extractContinuityMemory(
+    'Golden throne in a crumbling hall.',
+    'golden throne crumbling hall',
+  );
+  const prompt = buildSegmentPrompt(
+    'Cinematic dark hall',
+    'We arrive at the final resting place.',
+    2,
+    3,
+    undefined,
+    memory,
+  );
+
+  // Closing role language must be present.
+  assert.match(prompt, /Closing scene/);
+  assert.match(prompt, /resolved final image/);
+  // Subject persistence must also be present.
+  assert.match(prompt, /Subject:/);
+  assert.match(prompt, /throne/);
+});
+
+test('buildSegmentPrompt primary-subject coexists with blended content language', () => {
+  const memory = extractContinuityMemory(
+    'Lone warrior charging through storm.',
+    'lone warrior storm charge',
+  );
+  const prompt = buildSegmentPrompt(
+    'Cinematic storm arena',
+    'We clash against force and rise upward through breakthrough pressure.',
+    1,
+    3,
+    undefined,
+    memory,
+  );
+
+  // Blended confrontation+ascent content language must be present.
+  assert.match(prompt, /Resisted upward breakthrough/);
+  assert.match(prompt, /Surge against resistance/);
+  // Subject persistence must also be present.
+  assert.match(prompt, /Subject:/);
+  assert.match(prompt, /warrior/);
+});
+
+test('buildSegmentPrompt prompt stays under hard cap with primary-subject memory', () => {
+  const memory = extractContinuityMemory(
+    'A lone warrior silhouette stands at the gate of a storm-forged temple.',
+    'warrior silhouette gate storm-forged temple',
+  );
+  const prompt = buildSegmentPrompt(
+    'Hyper-detailed neon megacity skyline '.repeat(80),
+    'A procession of riders crossing a floating bridge at dusk.',
+    1,
+    3,
+    undefined,
+    memory,
+  );
+
+  assert.ok(prompt.length <= 1000, `Expected prompt length ≤ 1000, got ${prompt.length}`);
+});
+
+test('planNarrationScenes carries primary-subject through scenes', () => {
+  const scenes = planNarrationScenes(
+    'A warrior emerges. We rise undeniable.',
+    'Cinematic dark world',
+    12,
+    {
+      targetDurationSecs: 20,
+      narrationSegments: [
+        { text: 'A warrior emerges.', promptText: 'lone warrior storm silhouette' },
+        { text: 'We rise undeniable.', promptText: 'ascent through fractured light' },
+      ],
+    }
+  );
+
+  assert.equal(scenes.length, 2);
+
+  // First scene must not contain subject-persistence language.
+  assert.doesNotMatch(scenes[0].promptText, /Subject:/);
+
+  // Second scene must carry the warrior subject forward.
+  assert.match(scenes[1].promptText, /Subject:/);
+  assert.match(scenes[1].promptText, /warrior/);
+});
