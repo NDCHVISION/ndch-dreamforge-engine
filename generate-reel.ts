@@ -20,7 +20,9 @@
  *   REEL_MUSIC_PATH     Absolute path to an ambient music file (mp3/wav/aac).
  *                       If absent, the engine also checks assets/ambient-drone.mp3
  *                       relative to the repo root. Music is mixed at −18 dB with
- *                       a 1.5 s fade-in and 2.0 s fade-out. Omit to skip music.
+ *                       a 1.5 s fade-in and 2.0 s fade-out, plus adaptive ducking
+ *                       under narration for clearer voice-forward playback. Omit
+ *                       to skip music.
  *
  * Writes REEL_VIDEO_URL to $GITHUB_ENV so publish-reel.ts picks it up.
  *
@@ -49,6 +51,10 @@ import {
   type SubtitleCue,
   buildFallbackSubtitleCues,
 } from './lib/subtitles.ts';
+import {
+  buildAdaptiveMusicMixFilter,
+  resolveMusicTrackPath,
+} from './lib/audio-mixing.ts';
 
 const DEFAULT_VOICE_ID           = ENGINE_DEFAULTS.defaultVoiceId;
 const DEFAULT_ELEVENLABS_MODEL   = ENGINE_DEFAULTS.defaultModelId;
@@ -135,17 +141,12 @@ function processAudio(inputPath: string): string {
  *   • Fade-in: 1.5 s
  *   • Fade-out: 2.0 s (timed to end of narration)
  *   • Music loops indefinitely to cover any narration length
+ *   • Sidechain ducking keeps narration dominant without hard pumping
  */
 function mixMusicUnderVoice(voicePath: string, audioDurationSecs: number): string {
   const { musicPath: musicEnvPath } = getConfig();
   const musicAssetPath = join(resolve('.'), MUSIC_ASSET_RELATIVE_PATH);
-
-  let musicPath: string | null = null;
-  if (musicEnvPath) {
-    musicPath = musicEnvPath;
-  } else if (existsSync(musicAssetPath)) {
-    musicPath = musicAssetPath;
-  }
+  const musicPath = resolveMusicTrackPath(musicEnvPath, musicAssetPath, existsSync(musicAssetPath));
 
   if (!musicPath) {
     console.log(
@@ -157,18 +158,14 @@ function mixMusicUnderVoice(voicePath: string, audioDurationSecs: number): strin
 
   console.log(`         mixing ambient music: ${musicPath}`);
   const mixedPath = join(TMP, 'voiceover-mixed.mp3');
-  const fadeOutStart = Math.max(0, audioDurationSecs - 2.0).toFixed(3);
+  const filterGraph = buildAdaptiveMusicMixFilter(audioDurationSecs);
 
   try {
     execSync(
       `ffmpeg -y ` +
       `-stream_loop -1 -i "${musicPath}" ` +
       `-i "${voicePath}" ` +
-      `-filter_complex ` +
-        `"[0:a]volume=-18dB,` +
-        `afade=t=in:st=0:d=1.5,` +
-        `afade=t=out:st=${fadeOutStart}:d=2.0[music];` +
-        `[music][1:a]amix=inputs=2:duration=shortest[out]" ` +
+      `-filter_complex "${filterGraph}" ` +
       `-map "[out]" -ar 44100 -b:a 192k "${mixedPath}"`,
       { stdio: 'inherit' }
     );

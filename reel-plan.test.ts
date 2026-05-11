@@ -18,6 +18,12 @@ import {
   MAX_WORDS_PER_CUE,
   MIN_CUE_DURATION_SECS,
 } from './lib/subtitles.ts';
+import {
+  buildAdaptiveMusicMixFilter,
+  computeFadeOutStartSecsFormatted,
+  MUSIC_DUCKING_FILTER,
+  resolveMusicTrackPath,
+} from './lib/audio-mixing.ts';
 
 test('resolveProductionPlan falls back to env values when JSON paths are absent', () => {
   const plan = resolveProductionPlan(
@@ -845,4 +851,33 @@ test('buildFallbackSubtitleCues skips empty narration entries', () => {
   for (const cue of cues) {
     assert.ok(cue.text.trim().length > 0);
   }
+});
+
+test('resolveMusicTrackPath keeps no-music behavior unchanged', () => {
+  assert.equal(
+    resolveMusicTrackPath(undefined, '/repo/assets/ambient-drone.mp3', false),
+    null,
+  );
+});
+
+test('resolveMusicTrackPath keeps current source resolution precedence', () => {
+  assert.equal(
+    resolveMusicTrackPath('/custom/music.mp3', '/repo/assets/ambient-drone.mp3', true),
+    '/custom/music.mp3',
+  );
+  assert.equal(
+    resolveMusicTrackPath(undefined, '/repo/assets/ambient-drone.mp3', true),
+    '/repo/assets/ambient-drone.mp3',
+  );
+});
+
+test('buildAdaptiveMusicMixFilter includes sidechain ducking and preserves fades', () => {
+  const audioDuration = 12.5;
+  const filter = buildAdaptiveMusicMixFilter(audioDuration);
+  const fadeOutStart = computeFadeOutStartSecsFormatted(audioDuration);
+  assert.match(filter, /\[0:a\]volume=-18dB/);
+  assert.match(filter, /afade=t=in:st=0:d=1\.5/);
+  assert.ok(filter.includes(`afade=t=out:st=${fadeOutStart}:d=2`));
+  assert.ok(filter.includes(`sidechaincompress=${MUSIC_DUCKING_FILTER}`));
+  assert.match(filter, /\[ducked\]\[voice\]amix=inputs=2:duration=shortest\[out\]$/);
 });
