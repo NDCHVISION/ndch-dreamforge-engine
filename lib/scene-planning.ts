@@ -390,10 +390,10 @@ function contentPromptDirectives(profile: SceneContentProfile): ContentPromptDir
   // When two strong tendencies are detected, use a compact blended directive
   // instead of defaulting to primary only. Sorting the pair alphabetically gives
   // a canonical key regardless of which tendency ranked first.
-  const nonNeutral = profile.tendencies.filter(t => t !== 'neutral') as Exclude<SceneContentTendency, 'neutral'>[];
-  if (nonNeutral.length >= 2 && profile.secondaryScore >= MIN_SECONDARY_BLEND_SCORE) {
-    const blendKey = [nonNeutral[0], nonNeutral[1]].sort().join('+');
-    const blended = BLENDED_CONTENT_DIRECTIVES[blendKey];
+  const nonNeutralTendencies = profile.tendencies.filter(t => t !== 'neutral') as Exclude<SceneContentTendency, 'neutral'>[];
+  if (nonNeutralTendencies.length >= 2 && profile.secondaryScore >= MIN_SECONDARY_BLEND_SCORE) {
+    const blendedTendencyKey = [nonNeutralTendencies[0], nonNeutralTendencies[1]].sort().join('+');
+    const blended = BLENDED_CONTENT_DIRECTIVES[blendedTendencyKey];
     if (blended) return blended;
   }
 
