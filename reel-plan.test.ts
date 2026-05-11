@@ -386,6 +386,68 @@ test('buildSegmentPrompt uses closing-focused cinematic direction', () => {
   assert.match(prompt, /Simplified final tableau/);
 });
 
+test('buildSegmentPrompt adapts to transformation-oriented content', () => {
+  const prompt = buildSegmentPrompt(
+    'Cinematic forge of identity',
+    'Through fire we emerge and become unbreakable.',
+    1,
+    3
+  );
+
+  assert.match(prompt, /Frames morph from one state into the next/);
+  assert.match(prompt, /Metamorphic motion/);
+});
+
+test('buildSegmentPrompt adapts to confrontation-oriented content', () => {
+  const prompt = buildSegmentPrompt(
+    'Cinematic arena at dusk',
+    'We clash against resistance and push through force.',
+    1,
+    3
+  );
+
+  assert.match(prompt, /Opposing forces collide/);
+  assert.match(prompt, /Aggressive surges/);
+});
+
+test('buildSegmentPrompt adapts to stillness-oriented content', () => {
+  const prompt = buildSegmentPrompt(
+    'Cinematic temple in mist',
+    'In quiet stillness we reflect and breathe.',
+    1,
+    3
+  );
+
+  assert.match(prompt, /Centered restraint with breathing negative space/);
+  assert.match(prompt, /Slow drift or near-still holds/);
+  assert.match(prompt, /meditative air/);
+});
+
+test('buildSegmentPrompt adapts to revelation-oriented content', () => {
+  const prompt = buildSegmentPrompt(
+    'Cinematic chamber of mirrors',
+    'The truth is revealed as light opens the room.',
+    1,
+    3
+  );
+
+  assert.match(prompt, /Composition clears toward legible truth/);
+  assert.match(prompt, /Light opens surfaces as haze recedes/);
+});
+
+test('buildSegmentPrompt keeps role language visible while adapting to content', () => {
+  const prompt = buildSegmentPrompt(
+    'Dark cinematic city under stormlight',
+    'We confront the obstacle and force a breakthrough.',
+    0,
+    3
+  );
+
+  assert.match(prompt, /Opening scene/);
+  assert.match(prompt, /Hook instantly with a striking first image/);
+  assert.match(prompt, /Opposing forces collide/);
+});
+
 test('buildSegmentPrompt stays under runway prompt limit', () => {
   // Repeat enough times to force anchor truncation so we verify the hard 1000-char cap.
   const prompt = buildSegmentPrompt(
