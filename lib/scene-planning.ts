@@ -56,6 +56,19 @@ export interface ScenePlanningOptions {
   narrationSegments?: ResolvedNarrationSegment[];
 }
 
+/**
+ * Compact visual continuity snapshot derived from a preceding scene.
+ * Carries only the condensed visual focus so later scenes can reference
+ * the world established by earlier ones without bloating the prompt.
+ */
+export interface SceneContinuityMemory {
+  /** Compact visual focus extracted from the prior scene (≤ CONTINUITY_FOCUS_MAX_WORDS words). */
+  visualFocus: string;
+}
+
+/** Maximum words preserved in a continuity visual-focus anchor. */
+const CONTINUITY_FOCUS_MAX_WORDS = 8;
+
 interface NarrationUnit {
   text: string;
   promptText?: string;
@@ -481,25 +494,50 @@ export function sceneCue(index: number, totalScenes: number): string {
   return `Scene ${index + 1} of ${totalScenes}`;
 }
 
+/**
+ * Extracts a lightweight continuity snapshot from the current scene's visual
+ * context so it can be passed as memory into the next scene's prompt.
+ */
+export function extractContinuityMemory(
+  narrationChunk: string,
+  promptOverride?: string,
+): SceneContinuityMemory {
+  const visualFocus = limitWords(
+    compactVisualFocus(promptOverride ?? narrationChunk),
+    CONTINUITY_FOCUS_MAX_WORDS,
+  );
+  return { visualFocus };
+}
+
 export function buildSegmentPrompt(
   basePrompt: string,
   narrationChunk: string,
   clipIndex: number,
   totalClips: number,
-  promptOverride?: string
+  promptOverride?: string,
+  continuityMemory?: SceneContinuityMemory,
 ): string {
   const role = sceneRoleForIndex(clipIndex, totalClips);
   const directives = rolePromptDirectives(role);
   const sceneFocus = limitWords(compactVisualFocus(promptOverride ?? narrationChunk), 24);
   const contentProfile = inferSceneContentProfile(sceneFocus, narrationChunk);
   const contentDirectives = contentPromptDirectives(contentProfile);
+
+  // For non-opening scenes, append a compact prior-scene visual anchor to the
+  // continuity directive so later scenes feel like part of the same world.
+  const continuityAnchor =
+    clipIndex > 0 && continuityMemory?.visualFocus
+      ? ` Prior visual: ${continuityMemory.visualFocus}.`
+      : '';
+  const continuityDirective = `${directives.continuity}${continuityAnchor}`;
+
   const promptSuffix = [
     `${sceneCue(clipIndex, totalClips)}.`,
     directives.roleLine,
     `Composition: ${combineDirective(directives.composition, contentDirectives.composition)}`,
     `Motion: ${combineDirective(directives.motion, contentDirectives.motion)}`,
     `Lighting/atmosphere: ${combineDirective(directives.atmosphere, contentDirectives.atmosphere)}`,
-    `Continuity: ${directives.continuity}`,
+    `Continuity: ${continuityDirective}`,
     `Tone: ${combineDirective(directives.tone, contentDirectives.tone)}`,
     `Visual focus: ${sceneFocus}`,
   ].join(' ');
@@ -635,6 +673,7 @@ export function planNarrationScenes(
   const lockOpeningHook = usingAutoSplitUnits && shouldLockOpeningHook(units[0], totalClips);
   const lockClosingBeat = usingAutoSplitUnits && shouldLockClosingBeat(units[units.length - 1], totalClips);
   let unitIndex = 0;
+  let priorContinuityMemory: SceneContinuityMemory | undefined;
 
   for (let clipIndex = 0; clipIndex < totalClips; clipIndex++) {
     const clipDuration = clipDurations[clipIndex];
@@ -735,19 +774,25 @@ export function planNarrationScenes(
       }
     }
 
+    const promptText = buildSegmentPrompt(
+      basePrompt,
+      narrationChunk,
+      clipIndex,
+      totalClips,
+      promptOverride || undefined,
+      priorContinuityMemory,
+    );
+
+    // Update continuity memory so the next scene can reference this one.
+    priorContinuityMemory = extractContinuityMemory(narrationChunk, promptOverride || undefined);
+
     segments.push({
       clipIndex,
       clipDuration,
       role: sceneRoleForIndex(clipIndex, totalClips),
       estimatedNarrationSecs: Number(segmentNarrationSecs.toFixed(1)),
       narrationChunk,
-      promptText: buildSegmentPrompt(
-        basePrompt,
-        narrationChunk,
-        clipIndex,
-        totalClips,
-        promptOverride || undefined
-      ),
+      promptText,
       coveredSegmentIndices,
       timestampStartSeconds: clipTimestampStart,
       timestampEndSeconds: clipTimestampEnd,

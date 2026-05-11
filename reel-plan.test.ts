@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os';
 import {
   buildSceneTimeline,
   buildSegmentPrompt,
+  extractContinuityMemory,
   planClipDurations,
   planNarrationScenes,
 } from './lib/scene-planning.ts';
@@ -880,4 +881,122 @@ test('buildAdaptiveMusicMixFilter includes sidechain ducking and preserves fades
   assert.ok(filter.includes(`afade=t=out:st=${fadeOutStart}:d=2`));
   assert.ok(filter.includes(`sidechaincompress=${MUSIC_DUCKING_FILTER}`));
   assert.match(filter, /\[ducked\]\[voice\]amix=inputs=2:duration=shortest\[out\]$/);
+});
+
+// ── Scene continuity memory tests ─────────────────────────────────────────────
+
+test('buildSegmentPrompt first scene has no continuity carryover language', () => {
+  const prompt = buildSegmentPrompt(
+    'Dark cinematic city under stormlight',
+    'We begin now.',
+    0,
+    3,
+    undefined,
+    undefined,
+  );
+
+  assert.doesNotMatch(prompt, /Prior visual:/);
+});
+
+test('buildSegmentPrompt later scene includes compact continuity anchor from prior scene', () => {
+  const memory = extractContinuityMemory(
+    'Through fire we emerge and become unbreakable.',
+    'storm-forged silhouettes electric haze dark world',
+  );
+  const prompt = buildSegmentPrompt(
+    'Dark cinematic city under stormlight',
+    'We adapt with purpose.',
+    1,
+    3,
+    undefined,
+    memory,
+  );
+
+  assert.match(prompt, /Prior visual:/);
+  assert.match(prompt, /storm-forged silhouettes electric haze dark world/);
+});
+
+test('buildSegmentPrompt continuity prompt stays under hard cap with memory', () => {
+  const memory = extractContinuityMemory(
+    'Through fire and pressure we become undeniable forces of nature.',
+    'storm-forged silhouettes with electric blue haze',
+  );
+  const prompt = buildSegmentPrompt(
+    'Hyper-detailed neon megacity skyline '.repeat(80),
+    'A procession of silhouetted riders crossing a floating bridge at dusk.',
+    1,
+    3,
+    undefined,
+    memory,
+  );
+
+  assert.ok(prompt.length <= 1000, `Expected prompt length ≤ 1000, got ${prompt.length}`);
+});
+
+test('buildSegmentPrompt continuity memory preserves role-aware language', () => {
+  const memory = extractContinuityMemory(
+    'Through fire we emerge and become unbreakable.',
+    'storm-forged silhouettes dark world',
+  );
+  const prompt = buildSegmentPrompt(
+    'Dark cinematic city under stormlight',
+    'We resolve and arrive.',
+    2,
+    3,
+    undefined,
+    memory,
+  );
+
+  // Closing role language must still be present.
+  assert.match(prompt, /Closing scene/);
+  assert.match(prompt, /resolved final image/);
+  // Continuity anchor from prior scene must also be present.
+  assert.match(prompt, /Prior visual:/);
+  assert.match(prompt, /storm-forged silhouettes dark world/);
+});
+
+test('buildSegmentPrompt continuity memory coexists with blended content language', () => {
+  const memory = extractContinuityMemory(
+    'We rose upward through fire and pressure.',
+    'ascending storm arena charge',
+  );
+  const prompt = buildSegmentPrompt(
+    'Cinematic storm arena',
+    'We clash against force and rise upward through breakthrough pressure.',
+    1,
+    3,
+    undefined,
+    memory,
+  );
+
+  // Blended confrontation+ascent content language must be present.
+  assert.match(prompt, /Resisted upward breakthrough/);
+  assert.match(prompt, /Surge against resistance/);
+  // Continuity anchor from prior scene must also be present.
+  assert.match(prompt, /Prior visual:/);
+  assert.match(prompt, /ascending storm arena charge/);
+});
+
+test('planNarrationScenes carries forward continuity memory between scenes', () => {
+  const scenes = planNarrationScenes(
+    'Storm breaks above. We rise undeniable.',
+    'Cinematic stormworld',
+    12,
+    {
+      targetDurationSecs: 20,
+      narrationSegments: [
+        { text: 'Storm breaks above.', promptText: 'storm-forged silhouettes electric haze' },
+        { text: 'We rise undeniable.', promptText: 'ascent through fractured light' },
+      ],
+    }
+  );
+
+  assert.equal(scenes.length, 2);
+
+  // First scene must not contain a continuity anchor.
+  assert.doesNotMatch(scenes[0].promptText, /Prior visual:/);
+
+  // Second scene must carry forward the first scene's visual focus.
+  assert.match(scenes[1].promptText, /Prior visual:/);
+  assert.match(scenes[1].promptText, /storm-forged silhouettes electric haze/);
 });
