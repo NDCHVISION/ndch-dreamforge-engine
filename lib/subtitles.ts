@@ -6,13 +6,18 @@ export interface SubtitleCue {
   text: string;
 }
 
-/** Maximum words per subtitle cue. Optimised for mobile/vertical viewing. */
+/** Maximum words per subtitle cue. Optimized for mobile/vertical viewing. */
 export const MAX_WORDS_PER_CUE = 10;
 
 /** Minimum readable cue duration in seconds. Prevents flash cues. */
 export const MIN_CUE_DURATION_SECS = 1.2;
 
-/** Maximum characters per subtitle line before attempting a line break. */
+/**
+ * Maximum characters per subtitle line before attempting a line break.
+ * This is a byte/codepoint count, not a visual-width measurement, and works
+ * well for Latin-script narration. Adjust for CJK or other wide-character
+ * scripts where visual width differs significantly from codepoint count.
+ */
 export const MAX_CHARS_PER_LINE = 42;
 
 /**
@@ -112,7 +117,10 @@ export function wrapSubtitleText(
   const line2 = words.slice(bestBreakIndex + 1).join(' ');
 
   if (line2.length > maxCharsPerLine) {
-    // Cannot produce two clean lines — return single-line unchanged.
+    // Cannot produce two clean lines within the character limit.
+    // Return the single-line text unchanged rather than breaking at an
+    // arbitrary mid-word position; the caller may still display the full
+    // line (most subtitle renderers soft-wrap automatically).
     return normalized;
   }
 

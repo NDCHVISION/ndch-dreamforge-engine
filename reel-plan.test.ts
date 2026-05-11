@@ -654,8 +654,8 @@ test('wrapSubtitleText returns unchanged text when it fits on one line', () => {
   assert.equal(wrapSubtitleText(short), short);
 });
 
-test('wrapSubtitleText wraps long text into two lines', () => {
-  // 54-char line — exceeds the 42-char default max
+test('wrapSubtitleText wraps long text into two lines at word boundaries', () => {
+  // 48-char line — exceeds the 42-char default max
   const long = 'Through fire and pressure we become undeniable.';
   const wrapped = wrapSubtitleText(long);
   assert.ok(wrapped.includes('\n'), 'Expected a line break in wrapped subtitle text');
@@ -663,7 +663,13 @@ test('wrapSubtitleText wraps long text into two lines', () => {
   assert.equal(lines.length, 2);
   for (const line of lines) {
     assert.ok(line.length <= 42, `Line exceeds maxCharsPerLine: "${line}"`);
+    // Each line must start and end with a complete word (no leading/trailing whitespace)
+    assert.equal(line, line.trim(), `Line has unexpected leading/trailing whitespace: "${line}"`);
+    // The line must not start with a space (no mid-word break at the start)
+    assert.ok(!line.startsWith(' '), `Line starts with a space — mid-word break: "${line}"`);
   }
+  // Together the two lines must reconstruct the original text
+  assert.equal(lines.join(' '), long);
 });
 
 test('wrapSubtitleText does not introduce extra whitespace', () => {
