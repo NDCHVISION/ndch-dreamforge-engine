@@ -11,6 +11,13 @@ import {
   planNarrationScenes,
 } from './lib/scene-planning.ts';
 import { resolveProductionPlan } from './reel-plan.ts';
+import {
+  splitIntoPhrases,
+  wrapSubtitleText,
+  buildFallbackSubtitleCues,
+  MAX_WORDS_PER_CUE,
+  MIN_CUE_DURATION_SECS,
+} from './lib/subtitles.ts';
 
 test('resolveProductionPlan falls back to env values when JSON paths are absent', () => {
   const plan = resolveProductionPlan(
@@ -588,4 +595,254 @@ test('buildSegmentPrompt blended prompts stay under the runway prompt length lim
   );
 
   assert.ok(prompt.length <= 1000, `Expected prompt length ≤ 1000, got ${prompt.length}`);
+});
+
+// ── Subtitle quality tests ────────────────────────────────────────────────────
+
+test('splitIntoPhrases returns single phrase when text is short enough', () => {
+  const phrases = splitIntoPhrases('We rise.');
+  assert.deepEqual(phrases, ['We rise.']);
+});
+
+test('splitIntoPhrases splits at sentence boundaries', () => {
+  const phrases = splitIntoPhrases(
+    'We rise. We adapt. We endure.',
+    MAX_WORDS_PER_CUE,
+  );
+  assert.deepEqual(phrases, ['We rise.', 'We adapt.', 'We endure.']);
+});
+
+test('splitIntoPhrases splits at clause boundaries when a sentence exceeds maxWords', () => {
+  // Single sentence of 14 words; has a comma as clause boundary
+  const phrases = splitIntoPhrases(
+    'Through relentless effort, through fire and resistance, we become undeniable.',
+    8,
+  );
+  // Each resulting phrase must contain ≤ 8 words
+  for (const phrase of phrases) {
+    const wordCount = phrase.split(/\s+/).filter(Boolean).length;
+    assert.ok(
+      wordCount <= 8,
+      `Phrase exceeds maxWordsPerPhrase: "${phrase}" (${wordCount} words)`,
+    );
+  }
+  assert.ok(phrases.length > 1, 'Expected more than one phrase from clause split');
+});
+
+test('splitIntoPhrases falls back to word-count splitting when no boundaries exist', () => {
+  // 15 words, no punctuation at all
+  const longRun =
+    'we move we breathe we rise we fall we break we become we endure forever';
+  const phrases = splitIntoPhrases(longRun, 5);
+  for (const phrase of phrases) {
+    const wordCount = phrase.split(/\s+/).filter(Boolean).length;
+    assert.ok(
+      wordCount <= 5,
+      `Phrase exceeds maxWordsPerPhrase: "${phrase}" (${wordCount} words)`,
+    );
+  }
+  assert.ok(phrases.length > 1, 'Expected more than one phrase from word-count fallback');
+});
+
+test('splitIntoPhrases returns empty array for empty input', () => {
+  assert.deepEqual(splitIntoPhrases(''), []);
+  assert.deepEqual(splitIntoPhrases('   '), []);
+});
+
+test('wrapSubtitleText returns unchanged text when it fits on one line', () => {
+  const short = 'We rise.';
+  assert.equal(wrapSubtitleText(short), short);
+});
+
+test('wrapSubtitleText wraps long text into two lines at word boundaries', () => {
+  // 48-char line — exceeds the 42-char default max
+  const long = 'Through fire and pressure we become undeniable.';
+  const wrapped = wrapSubtitleText(long);
+  assert.ok(wrapped.includes('\n'), 'Expected a line break in wrapped subtitle text');
+  const lines = wrapped.split('\n');
+  assert.equal(lines.length, 2);
+  for (const line of lines) {
+    assert.ok(line.length <= 42, `Line exceeds maxCharsPerLine: "${line}"`);
+    // Each line must start and end with a complete word (no leading/trailing whitespace)
+    assert.equal(line, line.trim(), `Line has unexpected leading/trailing whitespace: "${line}"`);
+    // The line must not start with a space (no mid-word break at the start)
+    assert.ok(!line.startsWith(' '), `Line starts with a space — mid-word break: "${line}"`);
+  }
+  // Together the two lines must reconstruct the original text
+  assert.equal(lines.join(' '), long);
+});
+
+test('wrapSubtitleText does not introduce extra whitespace', () => {
+  const text = 'We move with patience and with relentless power.';
+  const wrapped = wrapSubtitleText(text);
+  // No leading/trailing spaces on either line
+  for (const line of wrapped.split('\n')) {
+    assert.equal(line, line.trim());
+  }
+});
+
+test('buildFallbackSubtitleCues splits long scene narration into multiple cues', () => {
+  const entries = [
+    {
+      clipIndex: 0,
+      clipDuration: 10 as const,
+      narrationText:
+        'We rise through fire. We adapt under pressure. We endure beyond all limits.',
+      estimatedNarrationSecs: 9,
+      intendedNarrationDurationSecs: undefined,
+      timestampStartSeconds: undefined,
+      timestampEndSeconds: undefined,
+      promptText: '',
+      coveredSegments: [],
+    },
+  ];
+
+  const cues = buildFallbackSubtitleCues(entries);
+  assert.ok(cues.length > 1, `Expected multiple cues, got ${cues.length}`);
+
+  // Each cue text should be shorter than the full narration
+  for (const cue of cues) {
+    const wordCount = cue.text.replace(/\n/g, ' ').split(/\s+/).filter(Boolean).length;
+    assert.ok(
+      wordCount <= MAX_WORDS_PER_CUE,
+      `Cue exceeds MAX_WORDS_PER_CUE: "${cue.text}" (${wordCount} words)`,
+    );
+  }
+});
+
+test('buildFallbackSubtitleCues produces monotonic non-overlapping cue timing', () => {
+  const entries = [
+    {
+      clipIndex: 0,
+      clipDuration: 10 as const,
+      narrationText: 'First we rise. Then we adapt. Finally we endure.',
+      estimatedNarrationSecs: 8,
+      intendedNarrationDurationSecs: undefined,
+      timestampStartSeconds: undefined,
+      timestampEndSeconds: undefined,
+      promptText: '',
+      coveredSegments: [],
+    },
+    {
+      clipIndex: 1,
+      clipDuration: 10 as const,
+      narrationText: 'We break through. We become unstoppable.',
+      estimatedNarrationSecs: 6,
+      intendedNarrationDurationSecs: undefined,
+      timestampStartSeconds: undefined,
+      timestampEndSeconds: undefined,
+      promptText: '',
+      coveredSegments: [],
+    },
+  ];
+
+  const cues = buildFallbackSubtitleCues(entries);
+  assert.ok(cues.length >= 2);
+
+  for (let i = 1; i < cues.length; i++) {
+    assert.ok(
+      cues[i].startSeconds >= cues[i - 1].endSeconds,
+      `Cue ${i} starts (${cues[i].startSeconds}) before previous ends (${cues[i - 1].endSeconds})`,
+    );
+    assert.ok(
+      cues[i].endSeconds > cues[i].startSeconds,
+      `Cue ${i} has zero or negative duration`,
+    );
+  }
+});
+
+test('buildFallbackSubtitleCues respects minimum cue duration', () => {
+  // A very short scene should still produce cues lasting at least MIN_CUE_DURATION_SECS
+  const entries = [
+    {
+      clipIndex: 0,
+      clipDuration: 5 as const,
+      narrationText: 'Rise. Adapt. Endure.',
+      estimatedNarrationSecs: 1.5,
+      intendedNarrationDurationSecs: undefined,
+      timestampStartSeconds: undefined,
+      timestampEndSeconds: undefined,
+      promptText: '',
+      coveredSegments: [],
+    },
+  ];
+
+  const cues = buildFallbackSubtitleCues(entries);
+  for (const cue of cues) {
+    const duration = cue.endSeconds - cue.startSeconds;
+    assert.ok(
+      duration >= MIN_CUE_DURATION_SECS - 1e-9,
+      `Cue duration ${duration.toFixed(3)}s is below MIN_CUE_DURATION_SECS (${MIN_CUE_DURATION_SECS}s): "${cue.text}"`,
+    );
+  }
+});
+
+test('buildFallbackSubtitleCues handles multiple entries with accumulating cursor', () => {
+  const entries = [
+    {
+      clipIndex: 0,
+      clipDuration: 10 as const,
+      narrationText: 'We rise through the storm.',
+      estimatedNarrationSecs: 5,
+      intendedNarrationDurationSecs: undefined,
+      timestampStartSeconds: undefined,
+      timestampEndSeconds: undefined,
+      promptText: '',
+      coveredSegments: [],
+    },
+    {
+      clipIndex: 1,
+      clipDuration: 10 as const,
+      narrationText: 'We adapt and endure.',
+      estimatedNarrationSecs: 4,
+      intendedNarrationDurationSecs: undefined,
+      timestampStartSeconds: undefined,
+      timestampEndSeconds: undefined,
+      promptText: '',
+      coveredSegments: [],
+    },
+  ];
+
+  const cues = buildFallbackSubtitleCues(entries);
+
+  assert.ok(cues.length >= 2);
+
+  // The last cue starts before the final endSeconds
+  const lastCue = cues[cues.length - 1];
+  assert.ok(lastCue.startSeconds >= 0);
+  assert.ok(lastCue.endSeconds > lastCue.startSeconds);
+});
+
+test('buildFallbackSubtitleCues skips empty narration entries', () => {
+  const entries = [
+    {
+      clipIndex: 0,
+      clipDuration: 10 as const,
+      narrationText: '',
+      estimatedNarrationSecs: 5,
+      intendedNarrationDurationSecs: undefined,
+      timestampStartSeconds: undefined,
+      timestampEndSeconds: undefined,
+      promptText: '',
+      coveredSegments: [],
+    },
+    {
+      clipIndex: 1,
+      clipDuration: 10 as const,
+      narrationText: 'We endure.',
+      estimatedNarrationSecs: 3,
+      intendedNarrationDurationSecs: undefined,
+      timestampStartSeconds: undefined,
+      timestampEndSeconds: undefined,
+      promptText: '',
+      coveredSegments: [],
+    },
+  ];
+
+  const cues = buildFallbackSubtitleCues(entries);
+  assert.ok(cues.length > 0);
+  // All cues should have non-empty text
+  for (const cue of cues) {
+    assert.ok(cue.text.trim().length > 0);
+  }
 });
