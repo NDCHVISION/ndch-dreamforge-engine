@@ -51,6 +51,5 @@ export function assertSufficientRunwayCredits(balance: number | null, estimatedC
     );
   }
   console.log(`Runway credit preflight OK: balance ${balance} >= estimated ${estimatedCost} credits.`);
-}
 
 }
