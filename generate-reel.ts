@@ -427,7 +427,7 @@ async function generateVideo(audioDurationSecs: number): Promise<{ videoPath: st
   });
   const sceneTimeline = buildSceneTimeline(scenePlan, plan.narrationSegments);
   const durations = scenePlan.map(scene => scene.clipDuration);
-  const plannedVisualSecs = durations.reduce((sum, d) => sum + d, 0);
+  const plannedVisualSecs = durations.reduce((sum, d) => sum + d, 0);      // Preflight Runway credit check — fail fast if the account lacks credits.     try {       const estimatedCost = estimateRunwayCostCredits(scenePlan);       const balance = await checkRunwayCreditBalance();       console.log(         `   preflight: Runway credits balance=${balance}, estimated cost=${estimatedCost} for ${scenePlan.length} clip(s)`,       );       assertSufficientRunwayCredits(balance, estimatedCost);     } catch (err) {       const msg = err instanceof Error ? err.message : String(err);       throw new Error(`Runway credit preflight failed: ${msg}`);     }
   console.log(
     `         narration ${audioDurationSecs.toFixed(1)}s, target ${plan.targetDurationSeconds ?? 'auto'}s, planned visual target up to ${MAX_REEL_SECS}s, plan: ${durations.join(' + ')} = ${plannedVisualSecs}s`
   );
