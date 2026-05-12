@@ -55,16 +55,18 @@ import {
   buildAdaptiveMusicMixFilter,
   resolveMusicTrackPath,
 } from './lib/audio-mixing.ts';
+import {
+  getRunwayPollDelayMs,
+  getRunwayRetryDelayMs,
+} from './lib/runway-resilience.ts';
 
 const DEFAULT_VOICE_ID           = ENGINE_DEFAULTS.defaultVoiceId;
 const DEFAULT_ELEVENLABS_MODEL   = ENGINE_DEFAULTS.defaultModelId;
 const DEFAULT_OUTPUT_FORMAT      = 'mp3_44100_192';
 const TMP                        = tmpdir();
 const MAX_REEL_SECS              = ENGINE_DEFAULTS.maxDurationSeconds;
-const RUNWAY_TIMEOUT_MS          = 300_000;  // budget for active (non-throttled) generation
-const RUNWAY_THROTTLE_SLEEP_MS   = 30_000;   // poll interval when task is THROTTLED
-const RUNWAY_POLL_SLEEP_MS       = 10_000;   // poll interval when task is RUNNING/PENDING
-const RUNWAY_MAX_WAIT_MS         = 900_000;  // hard wall-clock cap (15 min) including throttle time
+const RUNWAY_TIMEOUT_MS          = 300_000;
+const RUNWAY_MAX_TASK_ATTEMPTS   = 3;
 const MUSIC_ASSET_RELATIVE_PATH  = 'assets/ambient-drone.mp3';
 const DEFAULT_HTTP_TIMEOUT_MS    = 45_000;
 const MANAGED_RELEASE_TAG        = 'reel-latest';
@@ -258,90 +260,92 @@ function formatTimestamp(secs: number): string {
 
 async function generateRunwayClip(scene: ReelScenePlan, totalClips: number): Promise<string> {
   const { runwayKey } = getConfig();
-  console.log(
-    `         clip ${scene.clipIndex + 1}/${totalClips}: requesting ${scene.clipDuration}s for "${limitWords(scene.narrationChunk, 14)}"`
-  );
-  const { id } = await requestJson<{ id: string }>('https://api.dev.runwayml.com/v1/text_to_video', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${runwayKey}`,
-      'Content-Type': 'application/json',
-      'X-Runway-Version': '2024-11-06',
-    },
-    body: JSON.stringify({
-      promptText: scene.promptText,
-      model: 'gen4.5',
-      ratio: '720:1280',
-      duration: scene.clipDuration,
-    }),
-    timeoutMs: DEFAULT_HTTP_TIMEOUT_MS,
-    maxRetries: 3,
-  });
-  console.log(`         clip ${scene.clipIndex + 1}/${totalClips}: task id ${id}`);
+  const clipLabel = `clip ${scene.clipIndex + 1}/${totalClips}`;
+  let lastReason = `Runway task timed out after ${RUNWAY_TIMEOUT_MS / 1000}s`;
 
-  // Active-generation budget: time we allow the task to spend in a non-throttled state.
-  // THROTTLED periods extend this deadline so they don't eat into the generation budget.
-  // A hard wall-clock cap prevents infinite loops when throttling is sustained.
-  let deadline          = Date.now() + RUNWAY_TIMEOUT_MS;
-  const hardDeadline    = Date.now() + RUNWAY_MAX_WAIT_MS;
-  let attempt           = 0;
-
-  while (Date.now() < deadline && Date.now() < hardDeadline) {
-    const iterationStart = Date.now();
-    await sleep(RUNWAY_POLL_SLEEP_MS);
-    attempt++;
-
-    const task = await requestJson<{
-      status:   string;
-      output?:  string[];
-      failure?: string;
-    }>(`https://api.dev.runwayml.com/v1/tasks/${id}`, {
+  for (let taskAttempt = 1; taskAttempt <= RUNWAY_MAX_TASK_ATTEMPTS; taskAttempt++) {
+    console.log(
+      `         ${clipLabel}: requesting ${scene.clipDuration}s for "${limitWords(scene.narrationChunk, 14)}"` +
+      ` (attempt ${taskAttempt}/${RUNWAY_MAX_TASK_ATTEMPTS})`
+    );
+    const { id } = await requestJson<{ id: string }>('https://api.dev.runwayml.com/v1/text_to_video', {
+      method: 'POST',
       headers: {
         'Authorization': `Bearer ${runwayKey}`,
+        'Content-Type': 'application/json',
         'X-Runway-Version': '2024-11-06',
       },
+      body: JSON.stringify({
+        promptText: scene.promptText,
+        model: 'gen4.5',
+        ratio: '720:1280',
+        duration: scene.clipDuration,
+      }),
       timeoutMs: DEFAULT_HTTP_TIMEOUT_MS,
       maxRetries: 3,
     });
+    console.log(`         ${clipLabel}: task id ${id}`);
 
-    console.log(`         clip ${scene.clipIndex + 1}/${totalClips} [${attempt}] ${task.status}`);
+    const deadline = Date.now() + RUNWAY_TIMEOUT_MS;
+    let pollAttempt = 0;
+    let previousStatus: string | undefined;
 
-    if (task.status === 'SUCCEEDED') {
-      const videoUrl = task.output?.[0];
-      if (!videoUrl) throw new Error(
-        `Runway task ${id} succeeded but returned no output URL — this may indicate an API response change or incomplete generation`
-      );
+    while (Date.now() < deadline) {
+      await sleep(getRunwayPollDelayMs(previousStatus));
+      pollAttempt++;
 
-      const videoPath = join(TMP, `runway-${String(scene.clipIndex + 1).padStart(2, '0')}.mp4`);
-      const clipBuffer = await requestBuffer(videoUrl, {
+      const task = await requestJson<{
+        status:   string;
+        output?:  string[];
+        failure?: string;
+      }>(`https://api.dev.runwayml.com/v1/tasks/${id}`, {
+        headers: {
+          'Authorization': `Bearer ${runwayKey}`,
+          'X-Runway-Version': '2024-11-06',
+        },
         timeoutMs: DEFAULT_HTTP_TIMEOUT_MS,
         maxRetries: 3,
       });
-      writeFileSync(videoPath, clipBuffer);
-      console.log(`         clip ${scene.clipIndex + 1}/${totalClips}: saved ${videoPath}`);
-      return videoPath;
+
+      previousStatus = task.status;
+      console.log(`         ${clipLabel} [${pollAttempt}] ${task.status}`);
+
+      if (task.status === 'SUCCEEDED') {
+        const videoUrl = task.output?.[0];
+        if (!videoUrl) throw new Error(
+          `Runway task ${id} succeeded but returned no output URL — this may indicate an API response change or incomplete generation`
+        );
+
+        const videoPath = join(TMP, `runway-${String(scene.clipIndex + 1).padStart(2, '0')}.mp4`);
+        const clipBuffer = await requestBuffer(videoUrl, {
+          timeoutMs: DEFAULT_HTTP_TIMEOUT_MS,
+          maxRetries: 3,
+        });
+        writeFileSync(videoPath, clipBuffer);
+        console.log(`         ${clipLabel}: saved ${videoPath}`);
+        return videoPath;
+      }
+
+      if (task.status === 'FAILED' || task.status === 'CANCELLED') {
+        lastReason = task.failure ?? `Runway task ${id} ended with status ${task.status}`;
+        break;
+      }
     }
 
-    if (task.status === 'FAILED') {
-      throw new Error(`Runway task failed: ${task.failure ?? 'unknown reason'}`);
+    if (Date.now() >= deadline) {
+      lastReason = `Runway task ${id} remained ${previousStatus ?? 'RUNNING'} after ${RUNWAY_TIMEOUT_MS / 1000}s`;
     }
 
-    if (task.status === 'THROTTLED') {
-      // Extend the active-generation deadline by the actual elapsed time so that
-      // throttle wait time doesn't count against the generation budget.
-      // Also sleep longer between polls to be a good API citizen.
-      await sleep(RUNWAY_THROTTLE_SLEEP_MS);
-      deadline += Date.now() - iterationStart;
+    if (taskAttempt < RUNWAY_MAX_TASK_ATTEMPTS) {
+      const retryDelayMs = getRunwayRetryDelayMs(taskAttempt);
+      console.log(`         ${clipLabel}: retrying after ${Math.round(retryDelayMs / 1000)}s (${lastReason})`);
+      await sleep(retryDelayMs);
     }
   }
 
-  if (Date.now() >= hardDeadline) {
-    throw new Error(
-      `Runway task ${id} exceeded the ${RUNWAY_MAX_WAIT_MS / 60_000} min wall-clock cap — ` +
-      `check your Runway quota or retry later`
-    );
-  }
-  throw new Error(`Runway task ${id} timed out after ${RUNWAY_TIMEOUT_MS / 1000}s of active generation — try a shorter prompt or retry`);
+  throw new Error(
+    `Runway clip ${scene.clipIndex + 1}/${totalClips} failed after ${RUNWAY_MAX_TASK_ATTEMPTS} attempts: ${lastReason}`
+  );
 }
 
 function stitchVideoClips(clipPaths: string[]): string {
