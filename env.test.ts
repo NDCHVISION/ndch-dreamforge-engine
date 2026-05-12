@@ -9,6 +9,10 @@ import {
   loadGenerateRuntimeConfig,
   loadPublishRuntimeConfig,
 } from './config/env.ts';
+import {
+  getRunwayPollDelayMs,
+  getRunwayRetryDelayMs,
+} from './lib/runway-resilience.ts';
 
 const DEFAULTS = {
   defaultVoiceId: 'voice-default',
@@ -151,4 +155,17 @@ test('getOptionalBoolean rejects invalid boolean values', () => {
     () => getOptionalBoolean({ REEL_SHARE_TO_FEED: 'yes' }, 'REEL_SHARE_TO_FEED'),
     /Invalid boolean env var REEL_SHARE_TO_FEED: yes/
   );
+});
+
+test('getRunwayPollDelayMs uses a longer wait when task is throttled', () => {
+  assert.equal(getRunwayPollDelayMs('RUNNING'), 10_000);
+  assert.equal(getRunwayPollDelayMs('THROTTLED'), 20_000);
+  assert.equal(getRunwayPollDelayMs('throttled'), 20_000);
+});
+
+test('getRunwayRetryDelayMs applies capped exponential backoff', () => {
+  assert.equal(getRunwayRetryDelayMs(1), 15_000);
+  assert.equal(getRunwayRetryDelayMs(2), 30_000);
+  assert.equal(getRunwayRetryDelayMs(3), 60_000);
+  assert.equal(getRunwayRetryDelayMs(4), 60_000);
 });
