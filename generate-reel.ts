@@ -55,6 +55,10 @@ import {
   buildAdaptiveMusicMixFilter,
   resolveMusicTrackPath,
 } from './lib/audio-mixing.ts';
+import {
+  getRunwayPollDelayMs,
+  getRunwayRetryDelayMs,
+} from './lib/runway-resilience.ts';
 
 const DEFAULT_VOICE_ID           = ENGINE_DEFAULTS.defaultVoiceId;
 const DEFAULT_ELEVENLABS_MODEL   = ENGINE_DEFAULTS.defaultModelId;
@@ -62,6 +66,7 @@ const DEFAULT_OUTPUT_FORMAT      = 'mp3_44100_192';
 const TMP                        = tmpdir();
 const MAX_REEL_SECS              = ENGINE_DEFAULTS.maxDurationSeconds;
 const RUNWAY_TIMEOUT_MS          = 300_000;
+const RUNWAY_MAX_TASK_ATTEMPTS   = 3;
 const MUSIC_ASSET_RELATIVE_PATH  = 'assets/ambient-drone.mp3';
 const DEFAULT_HTTP_TIMEOUT_MS    = 45_000;
 const MANAGED_RELEASE_TAG        = 'reel-latest';
@@ -255,72 +260,92 @@ function formatTimestamp(secs: number): string {
 
 async function generateRunwayClip(scene: ReelScenePlan, totalClips: number): Promise<string> {
   const { runwayKey } = getConfig();
-  console.log(
-    `         clip ${scene.clipIndex + 1}/${totalClips}: requesting ${scene.clipDuration}s for "${limitWords(scene.narrationChunk, 14)}"`
-  );
-  const { id } = await requestJson<{ id: string }>('https://api.dev.runwayml.com/v1/text_to_video', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${runwayKey}`,
-      'Content-Type': 'application/json',
-      'X-Runway-Version': '2024-11-06',
-    },
-    body: JSON.stringify({
-      promptText: scene.promptText,
-      model: 'gen4.5',
-      ratio: '720:1280',
-      duration: scene.clipDuration,
-    }),
-    timeoutMs: DEFAULT_HTTP_TIMEOUT_MS,
-    maxRetries: 3,
-  });
-  console.log(`         clip ${scene.clipIndex + 1}/${totalClips}: task id ${id}`);
+  const clipLabel = `clip ${scene.clipIndex + 1}/${totalClips}`;
+  let lastReason = `Runway task timed out after ${RUNWAY_TIMEOUT_MS / 1000}s`;
 
-  // Poll up to 5 minutes
-  const deadline = Date.now() + RUNWAY_TIMEOUT_MS;
-  let attempt    = 0;
-
-  while (Date.now() < deadline) {
-    await sleep(10_000);
-    attempt++;
-
-    const task = await requestJson<{
-      status:   string;
-      output?:  string[];
-      failure?: string;
-    }>(`https://api.dev.runwayml.com/v1/tasks/${id}`, {
+  for (let taskAttempt = 1; taskAttempt <= RUNWAY_MAX_TASK_ATTEMPTS; taskAttempt++) {
+    console.log(
+      `         ${clipLabel}: requesting ${scene.clipDuration}s for "${limitWords(scene.narrationChunk, 14)}"` +
+      ` (attempt ${taskAttempt}/${RUNWAY_MAX_TASK_ATTEMPTS})`
+    );
+    const { id } = await requestJson<{ id: string }>('https://api.dev.runwayml.com/v1/text_to_video', {
+      method: 'POST',
       headers: {
         'Authorization': `Bearer ${runwayKey}`,
+        'Content-Type': 'application/json',
         'X-Runway-Version': '2024-11-06',
       },
+      body: JSON.stringify({
+        promptText: scene.promptText,
+        model: 'gen4.5',
+        ratio: '720:1280',
+        duration: scene.clipDuration,
+      }),
       timeoutMs: DEFAULT_HTTP_TIMEOUT_MS,
       maxRetries: 3,
     });
+    console.log(`         ${clipLabel}: task id ${id}`);
 
-    console.log(`         clip ${scene.clipIndex + 1}/${totalClips} [${attempt}] ${task.status}`);
+    const deadline = Date.now() + RUNWAY_TIMEOUT_MS;
+    let pollAttempt = 0;
+    let previousStatus: string | undefined;
 
-    if (task.status === 'SUCCEEDED') {
-      const videoUrl = task.output?.[0];
-      if (!videoUrl) throw new Error(
-        `Runway task ${id} succeeded but returned no output URL — this may indicate an API response change or incomplete generation`
-      );
+    while (Date.now() < deadline) {
+      await sleep(getRunwayPollDelayMs(previousStatus));
+      pollAttempt++;
 
-      const videoPath = join(TMP, `runway-${String(scene.clipIndex + 1).padStart(2, '0')}.mp4`);
-      const clipBuffer = await requestBuffer(videoUrl, {
+      const task = await requestJson<{
+        status:   string;
+        output?:  string[];
+        failure?: string;
+      }>(`https://api.dev.runwayml.com/v1/tasks/${id}`, {
+        headers: {
+          'Authorization': `Bearer ${runwayKey}`,
+          'X-Runway-Version': '2024-11-06',
+        },
         timeoutMs: DEFAULT_HTTP_TIMEOUT_MS,
         maxRetries: 3,
       });
-      writeFileSync(videoPath, clipBuffer);
-      console.log(`         clip ${scene.clipIndex + 1}/${totalClips}: saved ${videoPath}`);
-      return videoPath;
+
+      previousStatus = task.status;
+      console.log(`         ${clipLabel} [${pollAttempt}] ${task.status}`);
+
+      if (task.status === 'SUCCEEDED') {
+        const videoUrl = task.output?.[0];
+        if (!videoUrl) throw new Error(
+          `Runway task ${id} succeeded but returned no output URL — this may indicate an API response change or incomplete generation`
+        );
+
+        const videoPath = join(TMP, `runway-${String(scene.clipIndex + 1).padStart(2, '0')}.mp4`);
+        const clipBuffer = await requestBuffer(videoUrl, {
+          timeoutMs: DEFAULT_HTTP_TIMEOUT_MS,
+          maxRetries: 3,
+        });
+        writeFileSync(videoPath, clipBuffer);
+        console.log(`         ${clipLabel}: saved ${videoPath}`);
+        return videoPath;
+      }
+
+      if (task.status === 'FAILED' || task.status === 'CANCELLED') {
+        lastReason = task.failure ?? `Runway task ${id} ended with status ${task.status}`;
+        break;
+      }
     }
 
-    if (task.status === 'FAILED') {
-      throw new Error(`Runway task failed: ${task.failure ?? 'unknown reason'}`);
+    if (Date.now() >= deadline) {
+      lastReason = `Runway task ${id} remained ${previousStatus ?? 'RUNNING'} after ${RUNWAY_TIMEOUT_MS / 1000}s`;
+    }
+
+    if (taskAttempt < RUNWAY_MAX_TASK_ATTEMPTS) {
+      const retryDelayMs = getRunwayRetryDelayMs(taskAttempt);
+      console.log(`         ${clipLabel}: retrying after ${Math.round(retryDelayMs / 1000)}s (${lastReason})`);
+      await sleep(retryDelayMs);
     }
   }
 
-  throw new Error(`Runway task ${id} timed out after ${RUNWAY_TIMEOUT_MS / 1000}s — try a shorter prompt or retry`);
+  throw new Error(
+    `Runway clip ${scene.clipIndex + 1}/${totalClips} failed after ${RUNWAY_MAX_TASK_ATTEMPTS} attempts: ${lastReason}`
+  );
 }
 
 function stitchVideoClips(clipPaths: string[]): string {
