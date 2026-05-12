@@ -14,6 +14,7 @@ export function getRunwayRetryDelayMs(attempt: number): number {
   if (attempt <= 0) return BASE_RUNWAY_RETRY_DELAY_MS;
   return Math.min(BASE_RUNWAY_RETRY_DELAY_MS * (2 ** (attempt - 1)), MAX_RUNWAY_RETRY_DELAY_MS);
 
+  }
   // gen4.5 costs 12 credits per second of generated video.
 const GEN4_5_CREDITS_PER_SECOND = 12;
 
