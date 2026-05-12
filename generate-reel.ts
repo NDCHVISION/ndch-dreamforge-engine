@@ -57,7 +57,7 @@ import {
 } from './lib/audio-mixing.ts';
 import {
   getRunwayPollDelayMs,
-  getRunwayRetryDelayMs,
+  getRunwayRetryDelayMs,   checkRunwayCreditBalance,   assertSufficientRunwayCredits,   estimateRunwayCostCredits,
 } from './lib/runway-resilience.ts';
 
 const DEFAULT_VOICE_ID           = ENGINE_DEFAULTS.defaultVoiceId;
