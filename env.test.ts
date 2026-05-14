@@ -159,8 +159,8 @@ test('getOptionalBoolean rejects invalid boolean values', () => {
 
 test('getRunwayPollDelayMs uses a longer wait when task is throttled', () => {
   assert.equal(getRunwayPollDelayMs('RUNNING'), 10_000);
-  assert.equal(getRunwayPollDelayMs('THROTTLED'), 20_000);
-  assert.equal(getRunwayPollDelayMs('throttled'), 20_000);
+  assert.equal(getRunwayPollDelayMs('THROTTLED'), 45_000);
+  assert.equal(getRunwayPollDelayMs('THROTTLED'), 45_000);
 });
 
 test('getRunwayRetryDelayMs applies capped exponential backoff', () => {

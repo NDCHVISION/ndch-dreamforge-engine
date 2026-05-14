@@ -1,1 +1,1 @@
-fix: throttle resilience - 25min deadline, clip checkpoint, cache resume
+fix: update test assertion to match THROTTLED poll delay 45s
