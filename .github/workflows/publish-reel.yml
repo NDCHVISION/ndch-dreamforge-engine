@@ -22,6 +22,7 @@ on:
 jobs:
   generate-and-publish:
     runs-on: ubuntu-latest
+    timeout-minutes: 120
 
     permissions:
       contents: write   # required to create GitHub Releases
@@ -42,6 +43,22 @@ jobs:
       - name: Run reel planning tests
         run: npm test
 
+      - name: Restore Runway clip checkpoint
+        id: cache-clips
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            /tmp/runway-clip-checkpoint.json
+            /tmp/runway-01.mp4
+            /tmp/runway-02.mp4
+            /tmp/runway-03.mp4
+            /tmp/runway-04.mp4
+            /tmp/runway-05.mp4
+            /tmp/runway-06.mp4
+          key: runway-clips-${{ inputs.reel_spec_path || 'env' }}-${{ github.run_id }}
+          restore-keys: |
+            runway-clips-${{ inputs.reel_spec_path || 'env' }}-
+
       - name: Generate voiceover + video
         env:
           ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
@@ -52,7 +69,23 @@ jobs:
           REEL_SCRIPT:        ${{ inputs.script }}
           REEL_PROMPT:        ${{ inputs.video_prompt }}
           REEL_CAPTION:       ${{ inputs.caption }}
+          CLIP_CHECKPOINT_PATH: /tmp/runway-clip-checkpoint.json
         run: npm run generate
+
+
+      - name: Save Runway clip checkpoint
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            /tmp/runway-clip-checkpoint.json
+            /tmp/runway-01.mp4
+            /tmp/runway-02.mp4
+            /tmp/runway-03.mp4
+            /tmp/runway-04.mp4
+            /tmp/runway-05.mp4
+            /tmp/runway-06.mp4
+          key: runway-clips-${{ inputs.reel_spec_path || 'env' }}-${{ github.run_id }}
 
       - name: Surface resolved production plan
         if: ${{ env.REEL_RESOLVED_PLAN_PATH != '' }}

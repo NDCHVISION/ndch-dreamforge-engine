@@ -29,7 +29,7 @@
  * Node ≥ 18 + ffmpeg on PATH required.
  */
 
-import { writeFileSync, readFileSync, existsSync, appendFileSync, copyFileSync } from 'node:fs';
+import { writeFileSync, readFileSync, existsSync, appendFileSync, copyFileSync, unlinkSync } from 'node:fs';
 import { execSync }                                                 from 'node:child_process';
 import { randomUUID }                                               from 'node:crypto';
 import { tmpdir }                                                   from 'node:os';
@@ -65,14 +65,34 @@ const DEFAULT_ELEVENLABS_MODEL   = ENGINE_DEFAULTS.defaultModelId;
 const DEFAULT_OUTPUT_FORMAT      = 'mp3_44100_192';
 const TMP                        = tmpdir();
 const MAX_REEL_SECS              = ENGINE_DEFAULTS.maxDurationSeconds;
-const RUNWAY_TIMEOUT_MS          = 600_000; // 10 min — THROTTLED tasks need time to queue
+const RUNWAY_TIMEOUT_MS          = 1_500_000; // 25 min — THROTTLED tasks can queue for a long time
 const RUNWAY_MAX_TASK_ATTEMPTS   = 4;
+const CLIP_CHECKPOINT_PATH       = process.env.CLIP_CHECKPOINT_PATH ?? join(TMP, 'runway-clip-checkpoint.json');
 const MUSIC_ASSET_RELATIVE_PATH  = 'assets/ambient-drone.mp3';
 const DEFAULT_HTTP_TIMEOUT_MS    = 45_000;
 const MANAGED_RELEASE_TAG        = 'reel-latest';
 const MANAGED_RELEASE_NAME       = 'NDCH Dreamforge Latest Reel';
 
 const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
+
+// ── Clip checkpoint -- persists completed clip paths across attempts/runs ──
+function loadClipCheckpoint(): Record<number, string> {
+  try {
+    if (existsSync(CLIP_CHECKPOINT_PATH)) {
+      const raw = JSON.parse(readFileSync(CLIP_CHECKPOINT_PATH, 'utf-8')) as Record<string, string>;
+      return Object.fromEntries(Object.entries(raw).map(([k, v]) => [Number(k), v]));
+    }
+  } catch { /* ignore corrupt checkpoint */ }
+  return {};
+}
+
+function saveClipCheckpoint(clipIndex: number, videoPath: string): void {
+  const checkpoint = loadClipCheckpoint();
+  checkpoint[clipIndex] = videoPath;
+  writeFileSync(CLIP_CHECKPOINT_PATH, JSON.stringify(checkpoint, null, 2));
+  console.log(`         checkpoint: clip[${clipIndex + 1}] saved`);
+}
+
 let runtimeConfig: GenerateRuntimeConfig | undefined;
 
 function getConfig(): GenerateRuntimeConfig {
@@ -388,9 +408,19 @@ function stitchVideoClips(clipPaths: string[]): string {
 
 async function generateRunwayClipsBounded(scenePlan: ReelScenePlan[]): Promise<string[]> {
   const { runwayConcurrency: concurrency } = getConfig();
+  const checkpoint = loadClipCheckpoint();
   const clipPaths = new Array<string>(scenePlan.length);
-  let nextIndex = 0;
 
+  // Pre-fill any clips that already completed in a previous run
+  for (const [idxStr, cachedPath] of Object.entries(checkpoint)) {
+    const idx = Number(idxStr);
+    if (idx < scenePlan.length && existsSync(cachedPath)) {
+      console.log(`         RESUME clip ${idx + 1}/${scenePlan.length}: loaded from checkpoint, skipping Runway`);
+      clipPaths[idx] = cachedPath;
+    }
+  }
+
+  let nextIndex = 0;
   console.log(`         runway concurrency: ${concurrency}`);
 
   async function worker(): Promise<void> {
@@ -398,8 +428,11 @@ async function generateRunwayClipsBounded(scenePlan: ReelScenePlan[]): Promise<s
       const currentIndex = nextIndex;
       nextIndex += 1;
       if (currentIndex >= scenePlan.length) return;
+      if (clipPaths[currentIndex]) continue; // already loaded from checkpoint
       const scene = scenePlan[currentIndex];
-      clipPaths[currentIndex] = await generateRunwayClip(scene, scenePlan.length);
+      const path = await generateRunwayClip(scene, scenePlan.length);
+      saveClipCheckpoint(currentIndex, path);
+      clipPaths[currentIndex] = path;
     }
   }
 
@@ -745,6 +778,9 @@ async function main(): Promise<void> {
   }
 
   console.log('');
+  // Clear checkpoint -- full reel published successfully.
+  try { unlinkSync(CLIP_CHECKPOINT_PATH); } catch { /* already gone */ }
+
   console.log(`✓  Reel ready → ${publicUrl}`);
 }
 
