@@ -65,8 +65,8 @@ const DEFAULT_ELEVENLABS_MODEL   = ENGINE_DEFAULTS.defaultModelId;
 const DEFAULT_OUTPUT_FORMAT      = 'mp3_44100_192';
 const TMP                        = tmpdir();
 const MAX_REEL_SECS              = ENGINE_DEFAULTS.maxDurationSeconds;
-const RUNWAY_TIMEOUT_MS          = 300_000;
-const RUNWAY_MAX_TASK_ATTEMPTS   = 3;
+const RUNWAY_TIMEOUT_MS          = 600_000; // 10 min — THROTTLED tasks need time to queue
+const RUNWAY_MAX_TASK_ATTEMPTS   = 4;
 const MUSIC_ASSET_RELATIVE_PATH  = 'assets/ambient-drone.mp3';
 const DEFAULT_HTTP_TIMEOUT_MS    = 45_000;
 const MANAGED_RELEASE_TAG        = 'reel-latest';
@@ -81,7 +81,7 @@ function getConfig(): GenerateRuntimeConfig {
       defaultModelId: DEFAULT_ELEVENLABS_MODEL,
       releaseTag: MANAGED_RELEASE_TAG,
       releaseName: MANAGED_RELEASE_NAME,
-      runwayConcurrency: 2,
+      runwayConcurrency: 1, // serialise clips — reduces Runway throttle contention
     });
   return runtimeConfig;
 }
