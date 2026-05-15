@@ -6,7 +6,7 @@ on:
       release_tag:
         description: 'Release tag containing the Be Like Water video'
         required: false
-        default: 'reel-1778427908450'
+        default: 'reel-1778425210333'
 
 permissions:
   contents: write
@@ -40,7 +40,7 @@ jobs:
         run: |
           VOICE_ID="C9Uh5MFptuXa176UlaXE"
           MODEL="eleven_multilingual_v2"
-          SCRIPT="What if the slowest thing in the room... was the most dangerous? Water doesn't attack the mountain. It doesn't demand. It doesn't force. It finds the smallest crack... and it shows up again tomorrow. Ten thousand years of the same river — and the mountain... is gone. Most people quit because they don't see results fast enough. But results are just the mountain... finally cracking. Be the water. Show up. Every single day. And let time do what force never could."
+          SCRIPT="Empty your mind. Be formless. Shapeless. Like water. You put water in a cup — it becomes the cup. A bottle — it becomes the bottle. Water doesn't resist. It reveals. Most people spend their whole lives trying to be unmovable. Trying to be the rock. But the rock doesn't win. Water finds the path — not because it's weak — but because it's wise. Flow when you need to flow. Crash when you need to crash. Adapt. Transform. Yield... and then rise. Be water, my friend."
 
           echo "Generating voiceover — voice: ${VOICE_ID}, model: ${MODEL}"
 
