@@ -9,6 +9,7 @@ on:
       reel_spec_path:
         description: 'Repo-relative path to the reel spec JSON for JSON-driven runs'
         required: false
+        default: 'reels/NDCH_010_SIGNAL_NOISE.json'
       script:
         description: 'Voiceover script fallback when REEL_SPEC_PATH is not provided'
         required: false
