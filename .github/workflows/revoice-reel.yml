@@ -8,6 +8,9 @@ on:
         required: false
         default: 'reel-1778427908450'
 
+permissions:
+  contents: write
+
 jobs:
   revoice:
     runs-on: ubuntu-latest
