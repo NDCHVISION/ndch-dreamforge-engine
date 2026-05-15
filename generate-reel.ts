@@ -297,7 +297,7 @@ async function generateRunwayClip(scene: ReelScenePlan, totalClips: number): Pro
       },
       body: JSON.stringify({
         promptText: scene.promptText,
-        model: 'gen4_turbo',
+        model: 'gen4.5',
         ratio: '720:1280',
         duration: scene.clipDuration,
       }),
