@@ -288,7 +288,7 @@ async function generateRunwayClip(scene: ReelScenePlan, totalClips: number): Pro
       `         ${clipLabel}: requesting ${scene.clipDuration}s for "${limitWords(scene.narrationChunk, 14)}"` +
       ` (attempt ${taskAttempt}/${RUNWAY_MAX_TASK_ATTEMPTS})`
     );
-    const { id } = await requestJson<{ id: string }>('https://api.dev.runwayml.com/v1/text_to_video', {
+    const { id } = await requestJson<{ id: string }>('https://api.runwayml.com/v1/text_to_video', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${runwayKey}`,
@@ -297,7 +297,7 @@ async function generateRunwayClip(scene: ReelScenePlan, totalClips: number): Pro
       },
       body: JSON.stringify({
         promptText: scene.promptText,
-        model: 'gen4.5',
+        model: 'gen4_turbo',
         ratio: '720:1280',
         duration: scene.clipDuration,
       }),
@@ -318,7 +318,7 @@ async function generateRunwayClip(scene: ReelScenePlan, totalClips: number): Pro
         status:   string;
         output?:  string[];
         failure?: string;
-      }>(`https://api.dev.runwayml.com/v1/tasks/${id}`, {
+      }>(`https://api.runwayml.com/v1/tasks/${id}`, {
         headers: {
           'Authorization': `Bearer ${runwayKey}`,
           'X-Runway-Version': '2024-11-06',
