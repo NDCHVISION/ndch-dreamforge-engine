@@ -28,6 +28,30 @@ const STYLES = {
     negative: 'text, words, logos, noisy clutter, low-contrast lighting',
     sceneNotes: 'Camera: mostly locked with parallax\nMotion: precise data-layer evolution\nSubtitle-safe center region'
   }
+  style_4_forge: {
+    name: 'Forge & Ember',
+    desc: 'Molten metal, falling sparks, raw craft under extreme pressure. Best for: hard work, effort, building, discipline.',
+    keywords: ['forge', 'fire', 'heat', 'pressure', 'molten', 'iron', 'craft', 'hammer', 'steel', 'build', 'make'],
+    prompt: concept => `Create a dramatic reel about ${concept} — extreme close-up of glowing molten metal and cascading sparks against pure black, liquid gold solidifying into form, slow motion ember drift, cinematic 4K, no text overlays.`,
+    negative: 'text, words, logos, bright daylight, clean spaces, static imagery',
+    sceneNotes: 'Camera: extreme macro close-up on forge details\nMotion: ultra-slow motion sparks and metal pour\nKeep center clear for subtitle safe zone'
+  },
+  style_5_blueprint: {
+    name: 'Blueprint Architect',
+    desc: 'Gold technical line drawings on black — systems, frameworks, deliberate construction. Best for: strategy, planning, systems.',
+    keywords: ['plan', 'design', 'architect', 'framework', 'structure', 'system', 'strategy', 'foundation', 'construct', 'engineer'],
+    prompt: concept => `Create a reel about ${concept} — precise gold architectural blueprint lines drawing themselves on deep black, geometric forms constructing from nothing, elegant technical diagrams morphing in sequence, cinematic 4K, no readable text.`,
+    negative: 'text, words, messy clutter, noise, bright backgrounds, chaotic imagery',
+    sceneNotes: 'Camera: slow reveal zoom on constructing line elements\nMotion: lines drawing themselves in real time\nSubtitle-safe center corridor'
+  },
+  style_6_obsidian: {
+    name: 'Obsidian Mirror',
+    desc: 'Polished dark reflective surfaces, confrontational stillness, bone-white light. Best for: self-honesty, truth, clarity.',
+    keywords: ['reflection', 'mirror', 'truth', 'honest', 'confront', 'face', 'clarity', 'reveal', 'acknowledge', 'see'],
+    prompt: concept => `Create a cinematic reel about ${concept} — polished obsidian and dark mirror surfaces, a figure standing before their distorted reflection, bone-white light source, deep crimson shadow accents, meditative stillness, 4K, no text overlays.`,
+    negative: 'text, words, logos, bright colors, busy patterns, rapid cuts',
+    sceneNotes: 'Camera: slow pull-back reveal, symmetrical framing\nMotion: minimal and contemplative\nMirror symmetry for maximum psychological impact'
+  }
 };
 
 const DURATION_NOTES = {
@@ -50,6 +74,19 @@ function escapeHtml(value) {
     .replace(/'/g, '&#39;');
 }
 
+function ensureStyleCard(styleId) {
+  if (document.querySelector(`.style-card[data-style="${styleId}"]`)) return;
+  const style = STYLES[styleId];
+  if (!style) return;
+  const grid = document.getElementById('styleGrid');
+  if (!grid) return;
+  const card = document.createElement('div');
+  card.className = 'style-card';
+  card.dataset.style = styleId;
+  card.innerHTML = `<div class="style-name">${escapeHtml(style.name)}</div><div class="style-desc">${escapeHtml(style.desc)}</div>`;
+  grid.appendChild(card);
+}
+
 async function loadEngineConfig() {
   try {
     const res = await fetch('./engine/viral-reel-engine.json');
@@ -61,7 +98,17 @@ async function loadEngineConfig() {
     const styleLibrary = engine.style_library;
     if (styleLibrary && typeof styleLibrary === 'object') {
       for (const [styleId, value] of Object.entries(styleLibrary)) {
-        if (!STYLES[styleId]) continue;
+        // Merge into existing STYLES entry (or create one if missing)
+        if (!STYLES[styleId]) {
+          STYLES[styleId] = {
+            name: value.label || styleId,
+            desc: value.description || '',
+            keywords: [],
+            prompt: concept => (value.base_prompt || '').replace(/\bQUOTE\b/g, concept),
+            negative: 'text, words, logos, watermark',
+            sceneNotes: value.camera_notes || ''
+          };
+        }
         if (typeof value.label === 'string') STYLES[styleId].name = value.label;
         if (typeof value.description === 'string') STYLES[styleId].desc = value.description;
         if (typeof value.base_prompt === 'string') {
@@ -70,6 +117,9 @@ async function loadEngineConfig() {
         if (Array.isArray(value.keywords)) {
           STYLES[styleId].keywords = value.keywords.filter(item => typeof item === 'string');
         }
+        if (typeof value.camera_notes === 'string') STYLES[styleId].sceneNotes = value.camera_notes;
+        // Ensure DOM card exists for this style
+        ensureStyleCard(styleId);
       }
     }
 
@@ -191,11 +241,31 @@ function getCorePrinciple(concept) {
 
 function generateVoiceover(concept, duration) {
   const c = concept.toLowerCase();
-  const isNature = c.match(/water|mountain|river|fire|earth|wind|ocean|storm/);
-  const isTransform = c.match(/transform|become|fear|overcome|break|rise|courage|warrior/);
+  const isNature = c.match(/water|mountain|river|earth|wind|ocean|storm/);
+  const isForge   = c.match(/forge|fire|heat|pressure|blacksmith|molten|iron|craft|hammer|steel|make|build/);
+  const isTransform = c.match(/transform|become|fear|overcome|break|rise|courage|warrior|reflection|mirror|truth|honest/);
+  const isBlueprint = c.match(/plan|design|architect|framework|structure|system|strategy|foundation|construct|engineer/);
 
   let segments;
-  if (isNature) {
+  if (isForge) {
+    segments = [
+      { start: '0:00', end: '0:03', text: 'Nothing of value was ever made without heat.', note: 'Striking opener.' },
+      { start: '0:03', end: '0:10', text: 'The blacksmith does not wish the iron were softer. He turns up the fire.', note: 'Core reframe.' },
+      { start: '0:10', end: '0:18', text: 'Every blow is information. Every resistance is instruction.', note: 'Three-beat rhythm.' },
+      { start: '0:18', end: '0:26', text: 'The people who complain about the pressure are the ones who never become the blade.', note: 'Contrast landing.' },
+      { start: '0:26', end: '0:34', text: 'You are not being destroyed. You are being formed.', note: 'Reframe payoff.' },
+      { start: '0:34', end: '0:38', text: 'Welcome the forge. Do the work.', note: 'Direct close.' }
+    ];
+  } else if (isBlueprint) {
+    segments = [
+      { start: '0:00', end: '0:03', text: 'Amateurs react. Architects design.', note: 'Contrast hook.' },
+      { start: '0:03', end: '0:10', text: `The person who controls the blueprint controls the outcome.`, note: 'Core principle.' },
+      { start: '0:10', end: '0:18', text: 'Start with the end in mind. Work backward. Remove everything that does not serve the structure.', note: 'Framework beat.' },
+      { start: '0:18', end: '0:26', text: 'The most powerful move you will ever make is deciding on purpose — before the pressure arrives.', note: 'Depth moment.' },
+      { start: '0:26', end: '0:34', text: 'Build the system. Trust the system. Become the system.', note: 'Triplet rhythm.' },
+      { start: '0:34', end: '0:38', text: 'Draw the blueprint. Then build it.', note: 'Action close.' }
+    ];
+  } else if (isNature) {
     segments = [
       { start: '0:00', end: '0:03', text: 'What if the most unstoppable force in the world made no sound at all?', note: 'Calm opening hook.' },
       { start: '0:03', end: '0:10', text: `${getCoreMetaphor(concept)} It never stops showing up.`, note: 'Measured cadence.' },
@@ -234,6 +304,12 @@ function generateCaption(concept) {
   }
   if (c.match(/transform|become|overcome/)) {
     return `You are not behind. You are mid-transformation.\n\nStop judging your chapter 1 against someone else's chapter 10.\n\nTag someone who needs this. 🔥\n\n#motivation #selfgrowth #discipline #mindset #reels #transformation`;
+  }
+  if (c.match(/forge|fire|heat|pressure|blacksmith|molten|iron|craft|hammer|steel/)) {
+    return `Nothing of value was made without resistance.\n\nYou are not being destroyed. You are being formed.\n\nSave this for the days it gets heavy. 🔥\n\n#motivation #discipline #grind #mindset #reels #resilience`;
+  }
+  if (c.match(/plan|design|architect|framework|strategy|foundation|system/)) {
+    return `Amateurs react. Architects design.\n\nBuild the plan before the pressure arrives.\n\nSave this for your next reset. 📐\n\n#motivation #strategy #mindset #discipline #reels #growth`;
   }
   return `Success is not an event. It is a direction.\n\nThe person you become is built in the quiet work.\n\nSave this and come back to it. 🏆\n\n#motivation #mindset #success #discipline #reels #consistency`;
 }
@@ -406,6 +482,20 @@ function setupUiEvents() {
 
   document.getElementById('generateBtn').addEventListener('click', generateReel);
   document.getElementById('exportBtn').addEventListener('click', exportJSON);
+
+  // Direct listeners on style cards (belt-and-suspenders alongside delegation)
+  document.querySelectorAll('.style-card').forEach(card => {
+    card.addEventListener('click', () => {
+      if (card.dataset.style) selectStyle(card.dataset.style, true);
+    });
+  });
+
+  // Direct listeners on dur-btns
+  document.querySelectorAll('.dur-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.dataset.dur) selectDuration(Number(btn.dataset.dur));
+    });
+  });
 
   document.addEventListener('click', event => {
     const target = event.target;

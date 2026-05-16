@@ -9,8 +9,16 @@
         "id": "style_1_fractal",
         "label": "Fractal Gold Architecture",
         "description": "Surreal, looping fractal visuals with liquid gold tones, sacred geometry, and cinematic depth.",
-        "base_prompt": "Create a surreal looping reel about QUOTE — liquid gold fractal geometry, sacred architecture dissolving into light, hyper-detailed cinematic motion, 4K, slow zoom, spiritual aesthetic, no text overlays.",
-        "keywords": ["water", "flow", "adapt", "resilience", "nature", "universe", "cosmos"],
+        "base_prompt": "Create a surreal looping reel about QUOTE \u2014 liquid gold fractal geometry, sacred architecture dissolving into light, hyper-detailed cinematic motion, 4K, slow zoom, spiritual aesthetic, no text overlays.",
+        "keywords": [
+          "water",
+          "flow",
+          "adapt",
+          "resilience",
+          "nature",
+          "universe",
+          "cosmos"
+        ],
         "emotional_tone": "transcendent",
         "camera_notes": "slow push-in, gentle orbital drift, depth-of-field shifts"
       },
@@ -18,8 +26,17 @@
         "id": "style_2_identity",
         "label": "Identity & Shadow Self",
         "description": "Dark cinematic portraiture with dramatic lighting, silhouettes, and intense personal narrative energy.",
-        "base_prompt": "Create a cinematic reel about QUOTE — dark dramatic portraiture, silhouette against golden light, slow motion fabric and dust particles, intense personal transformation aesthetic, 4K, no text overlays.",
-        "keywords": ["identity", "self", "shadow", "purpose", "strength", "warrior", "power", "discipline"],
+        "base_prompt": "Create a cinematic reel about QUOTE \u2014 dark dramatic portraiture, silhouette against golden light, slow motion fabric and dust particles, intense personal transformation aesthetic, 4K, no text overlays.",
+        "keywords": [
+          "identity",
+          "self",
+          "shadow",
+          "purpose",
+          "strength",
+          "warrior",
+          "power",
+          "discipline"
+        ],
         "emotional_tone": "intense",
         "camera_notes": "slow push-in on face, rack focus, handheld feel"
       },
@@ -27,10 +44,82 @@
         "id": "style_3_hud",
         "label": "HUD Neural Grid",
         "description": "Futuristic HUD-style overlays, neural network grids, dark sci-fi aesthetic with electric blue and gold.",
-        "base_prompt": "Create a futuristic reel about QUOTE — HUD data overlays, neural network grid lines, electric blue and gold neon accents, dark background, AI aesthetic, cinematic motion, 4K, no readable text.",
-        "keywords": ["mind", "brain", "focus", "ai", "future", "system", "code", "logic", "think"],
+        "base_prompt": "Create a futuristic reel about QUOTE \u2014 HUD data overlays, neural network grid lines, electric blue and gold neon accents, dark background, AI aesthetic, cinematic motion, 4K, no readable text.",
+        "keywords": [
+          "mind",
+          "brain",
+          "focus",
+          "ai",
+          "future",
+          "system",
+          "code",
+          "logic",
+          "think"
+        ],
         "emotional_tone": "cerebral",
         "camera_notes": "digital zoom, glitch transitions, parallax layers"
+      },
+      "style_4_forge": {
+        "id": "style_4_forge",
+        "label": "Forge & Ember",
+        "description": "Molten metal close-ups, falling sparks against deep black, liquid gold solidifying. The raw material under pressure becoming something permanent.",
+        "base_prompt": "Create a dramatic reel about QUOTE \u2014 extreme close-up of glowing molten metal and cascading sparks against pure black, liquid gold solidifying into form, slow motion ember drift, hands gripping hammer, cinematic 4K, no text overlays.",
+        "keywords": [
+          "forge",
+          "fire",
+          "heat",
+          "pressure",
+          "blacksmith",
+          "molten",
+          "iron",
+          "craft",
+          "hammer",
+          "steel",
+          "build",
+          "make"
+        ],
+        "emotional_tone": "primal",
+        "camera_notes": "extreme macro close-up, ultra-slow motion sparks, tight forge detail shots"
+      },
+      "style_5_blueprint": {
+        "id": "style_5_blueprint",
+        "label": "Blueprint Architect",
+        "description": "Precise gold technical line drawings on deep black \u2014 architectural blueprints for human systems. Frameworks, diagrams, deliberate construction.",
+        "base_prompt": "Create a reel about QUOTE \u2014 precise gold architectural blueprint lines drawing themselves on deep black, geometric forms constructing from nothing, elegant technical diagrams morphing in sequence, drafting instruments, cinematic 4K, no readable text.",
+        "keywords": [
+          "plan",
+          "design",
+          "architect",
+          "framework",
+          "structure",
+          "system",
+          "strategy",
+          "foundation",
+          "construct",
+          "engineer"
+        ],
+        "emotional_tone": "calculated",
+        "camera_notes": "slow reveal zoom on constructing line elements, lines drawing in real time, subtitle-safe center"
+      },
+      "style_6_obsidian": {
+        "id": "style_6_obsidian",
+        "label": "Obsidian Mirror",
+        "description": "Deep reflective black surfaces, figures facing their reflection, confrontational stillness. Bone-white light, crimson shadow accents.",
+        "base_prompt": "Create a cinematic reel about QUOTE \u2014 polished obsidian and dark mirror surfaces, a lone figure standing before their distorted reflection, bone-white light source, deep crimson shadow accents, meditative confrontational stillness, 4K, no text overlays.",
+        "keywords": [
+          "reflection",
+          "mirror",
+          "truth",
+          "honest",
+          "confront",
+          "face",
+          "clarity",
+          "reveal",
+          "acknowledge",
+          "see"
+        ],
+        "emotional_tone": "confrontational",
+        "camera_notes": "slow pull-back reveal, symmetrical framing, mirror-axis composition"
       }
     },
     "style_selection_logic": {
@@ -38,18 +127,85 @@
       "rules": [
         {
           "priority": 1,
-          "trigger_keywords": ["water", "flow", "adapt", "resilience", "nature", "cosmos", "universe"],
+          "trigger_keywords": [
+            "water",
+            "flow",
+            "adapt",
+            "resilience",
+            "nature",
+            "cosmos",
+            "universe"
+          ],
           "select": "style_1_fractal"
         },
         {
           "priority": 2,
-          "trigger_keywords": ["identity", "self", "shadow", "purpose", "strength", "warrior", "discipline"],
+          "trigger_keywords": [
+            "identity",
+            "self",
+            "shadow",
+            "purpose",
+            "strength",
+            "warrior",
+            "discipline"
+          ],
           "select": "style_2_identity"
         },
         {
           "priority": 3,
-          "trigger_keywords": ["mind", "brain", "focus", "ai", "future", "system", "code", "logic"],
+          "trigger_keywords": [
+            "mind",
+            "brain",
+            "focus",
+            "ai",
+            "future",
+            "system",
+            "code",
+            "logic"
+          ],
           "select": "style_3_hud"
+        },
+        {
+          "priority": 4,
+          "trigger_keywords": [
+            "forge",
+            "fire",
+            "heat",
+            "pressure",
+            "blacksmith",
+            "molten",
+            "iron",
+            "craft",
+            "hammer"
+          ],
+          "select": "style_4_forge"
+        },
+        {
+          "priority": 5,
+          "trigger_keywords": [
+            "plan",
+            "design",
+            "architect",
+            "framework",
+            "strategy",
+            "foundation",
+            "construct",
+            "system"
+          ],
+          "select": "style_5_blueprint"
+        },
+        {
+          "priority": 6,
+          "trigger_keywords": [
+            "reflection",
+            "mirror",
+            "truth",
+            "honest",
+            "confront",
+            "clarity",
+            "reveal"
+          ],
+          "select": "style_6_obsidian"
         },
         {
           "priority": 99,
@@ -76,7 +232,10 @@
     "production_stack": {
       "voiceover": {
         "provider": "elevenlabs",
-        "recommended_models": ["eleven_turbo_v2_5", "eleven_multilingual_v2"],
+        "recommended_models": [
+          "eleven_turbo_v2_5",
+          "eleven_multilingual_v2"
+        ],
         "default_voice_id": "pNInz6obpgDQGcFmaJgB",
         "default_voice_name": "Adam"
       },

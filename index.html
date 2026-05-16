@@ -120,12 +120,25 @@
       transition: all 0.2s;
       position: relative;
     }
-    .style-card:hover { border-color: #444; }
-    .style-card.active { border-color: var(--gold); background: #1e1a0f; }
+    .style-card:hover { border-color: #555; background: #141414; }
+    .style-card.active {
+      border-color: var(--gold);
+      border-width: 2px;
+      background: #1a1303;
+      box-shadow: 0 0 0 1px rgba(198,169,79,0.25), 0 4px 20px rgba(198,169,79,0.12);
+    }
+    .style-card.active .style-name { color: var(--gold); }
+    .style-card.active::before {
+      content: '✓';
+      position: absolute;
+      top: 9px; right: 10px;
+      font-size: 12px; font-weight: 900;
+      color: var(--gold); line-height: 1;
+    }
     .style-card.auto-selected::after {
       content: 'AUTO';
       position: absolute;
-      top: 8px; right: 8px;
+      top: 28px; right: 8px;
       font-size: 8px; letter-spacing: 1.5px;
       color: var(--gold); font-weight: 800;
     }
@@ -146,7 +159,14 @@
       font-family: inherit;
     }
     .dur-btn:hover { border-color: #444; color: var(--bone); }
-    .dur-btn.active { border-color: var(--gold); color: var(--gold); background: #1e1a0f; }
+    .dur-btn.active {
+      border-color: var(--gold);
+      border-width: 2px;
+      color: var(--gold);
+      background: #1a1303;
+      box-shadow: 0 0 0 1px rgba(198,169,79,0.2);
+      font-weight: 700;
+    }
     .dur-note { font-size: 11px; color: #555; margin-top: 8px; }
 
     /* ── GENERATE BUTTON ── */
@@ -406,16 +426,28 @@
         <div class="style-name">Mind Labyrinth HUD</div>
         <div class="style-desc">Subconscious as a living circuit board — symbols, diagrams, neural maps. Best for: strategy, discipline, stoicism.</div>
       </div>
+      <div class="style-card" data-style="style_4_forge">
+        <div class="style-name">Forge &amp; Ember</div>
+        <div class="style-desc">Molten metal, falling sparks, raw craft under extreme pressure. Best for: hard work, effort, building, discipline.</div>
+      </div>
+      <div class="style-card" data-style="style_5_blueprint">
+        <div class="style-name">Blueprint Architect</div>
+        <div class="style-desc">Gold technical line drawings on black — frameworks, systems, deliberate construction. Best for: strategy, planning, systems.</div>
+      </div>
+      <div class="style-card" data-style="style_6_obsidian">
+        <div class="style-name">Obsidian Mirror</div>
+        <div class="style-desc">Polished dark reflective surfaces, confrontational stillness, bone-white light. Best for: self-honesty, truth, identity.</div>
+      </div>
     </div>
   </div>
 
   <div class="card">
     <div class="card-title">03 — Target Duration</div>
     <div class="duration-row">
-      <button class="dur-btn" data-dur="15" aria-label="Select 15 seconds duration">15s</button>
-      <button class="dur-btn" data-dur="30" aria-label="Select 30 seconds duration">30s</button>
-      <button class="dur-btn active" data-dur="38" aria-label="Select 38 seconds duration (recommended default)">38s ★</button>
-      <button class="dur-btn" data-dur="60" aria-label="Select 60 seconds duration">60s</button>
+      <button type="button" class="dur-btn" data-dur="15" aria-label="Select 15 seconds duration">15s</button>
+      <button type="button" class="dur-btn" data-dur="30" aria-label="Select 30 seconds duration">30s</button>
+      <button type="button" class="dur-btn active" data-dur="38" aria-label="Select 38 seconds duration (recommended default)">38s ★</button>
+      <button type="button" class="dur-btn" data-dur="60" aria-label="Select 60 seconds duration">60s</button>
     </div>
     <div class="dur-note" id="durNote">38s — engine default sweet spot for full narrative arc.</div>
   </div>
