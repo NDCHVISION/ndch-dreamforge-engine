@@ -9,7 +9,7 @@
     "target_duration_seconds": 25
   },
   "visual_prompt": {
-    "primary_prompt": "Dark cinematic forge of identity. A calm figure bathed in furnace glow is reshaped by warm heat, rhythmic hammer falls, molten gold light, glowing embers, dark polished steel. High contrast, stoic, mythic, no readable text."
+    "primary_prompt": "Create a vertical cinematic forge of identity. The environment is a vast mythic smithy built from impossible dark iron architecture — walls of deep obsidian black (#0C0600 to #1A1A1A) split open by rivers of living gold light (#C6A94F) that rise upward along the walls like veins through stone. Furnace amber (#FF6B00) pulses from below, casting long heat-distortion shadows across polished steel surfaces. A lone silhouette stands at the center — neither flesh nor metal but something between — as waves of radiant heat ripple outward around it. Bone-white embers (#F5F2EB) drift upward in slow motion like ascending sparks of purpose. The mood is ancient, disciplined, and quietly transformative — the forge does not destroy, it perfects. Vertical 9:16 composition with the center of frame kept clear for subtitle overlay. No text in the visual. Seamless cinematic atmosphere, no cuts."
   },
   "voiceover": {
     "script": {
@@ -17,13 +17,13 @@
       "segments": [
         {
           "text": "The fire is shaping you. Without the heat, you are just a useless slab of iron. The pressure is the blueprint.",
-          "visual_prompt": "Dark forge interior. Calm figure resting on anvil, bathed in furnace glow. Rhythmic hammer falls in slow motion. Glowing embers drift outward. Skin warms into molten gold metal. Slow cinematic push-in, high contrast.",
+          "visual_prompt": "The furnace dominates the frame. Obsidian iron walls (#1A1A1A) glow amber-gold at their seams. A lone silhouette stands motionless in the heat shimmer — present, not struggling. Rivers of gold light (#C6A94F) climb the walls upward, slow and certain. Bone-white embers (#F5F2EB) drift upward like purpose finding form. Camera pushes slowly toward the silhouette through amber haze. Mood: ancient, patient, unstoppable.",
           "timestamp_start": "0:00",
           "timestamp_end": "0:20"
         },
         {
           "text": "Let the furnace finish its work. You were born to be forged.",
-          "visual_prompt": "Close-up on calm molten orange eyes. Heat shimmer over polished steel skin. Hammer descends gently; embers scatter outward. Figure rises as a serene blackened warrior with gold seams. Still final frame, mythic, disciplined.",
+          "visual_prompt": "Close on the silhouette — its edges blur between flesh and forged steel. Gold seams (#C6A94F) begin to glow from within the figure, luminous veins of purpose. A single hammer fall — slow motion, inevitable. The silhouette does not flinch. Embers scatter outward in all directions, bone-white on black. The camera holds still, reverent. Final frame: the figure stands complete — gold-seamed, still, mythic against deep obsidian (#0C0600). No movement. Just presence.",
           "timestamp_start": "0:20",
           "timestamp_end": "0:40"
         }
