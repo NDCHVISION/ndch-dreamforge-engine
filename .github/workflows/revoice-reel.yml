@@ -1,0 +1,93 @@
+name: Re-voice Reel (Audio Swap)
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release tag containing the Be Like Water video'
+        required: false
+        default: 'reel-1778425210333'
+
+permissions:
+  contents: write
+
+jobs:
+  revoice:
+    runs-on: ubuntu-latest
+    env:
+      ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install ffmpeg
+        run: sudo apt-get install -y ffmpeg
+
+      - name: Download original video
+        run: |
+          TAG="${{ inputs.release_tag }}"
+          echo "Fetching asset list for release: ${TAG}"
+          VIDEO_URL=$(curl -sf \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/tags/${TAG}" | \
+            jq -r '.assets[] | select(.name | endswith(".mp4")) | .browser_download_url')
+          echo "Downloading: ${VIDEO_URL}"
+          curl -L -o original.mp4 "${VIDEO_URL}"
+          echo "Video size: $(du -sh original.mp4)"
+
+      - name: Generate new ElevenLabs voiceover
+        run: |
+          VOICE_ID="C9Uh5MFptuXa176UlaXE"
+          MODEL="eleven_multilingual_v2"
+          SCRIPT="Empty your mind. Be formless. Shapeless. Like water. You put water in a cup — it becomes the cup. A bottle — it becomes the bottle. Water doesn't resist. It reveals. Most people spend their whole lives trying to be unmovable. Trying to be the rock. But the rock doesn't win. Water finds the path — not because it's weak — but because it's wise. Flow when you need to flow. Crash when you need to crash. Adapt. Transform. Yield... and then rise. Be water, my friend."
+
+          echo "Generating voiceover — voice: ${VOICE_ID}, model: ${MODEL}"
+
+          HTTP_STATUS=$(curl -s -w "%{http_code}" -o new_voiceover.mp3 \
+            -X POST "https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}" \
+            -H "xi-api-key: ${ELEVENLABS_API_KEY}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"text\": $(echo "$SCRIPT" | jq -Rs .),
+              \"model_id\": \"${MODEL}\",
+              \"output_format\": \"mp3_44100_192\",
+              \"voice_settings\": {
+                \"stability\": 0.42,
+                \"similarity_boost\": 0.8,
+                \"style\": 0.6,
+                \"use_speaker_boost\": true,
+                \"speed\": 0.88
+              }
+            }")
+
+          echo "ElevenLabs HTTP status: ${HTTP_STATUS}"
+          if [ "${HTTP_STATUS}" != "200" ]; then
+            echo "ElevenLabs error response:"
+            cat new_voiceover.mp3
+            exit 1
+          fi
+
+          echo "Voiceover size: $(du -sh new_voiceover.mp3)"
+          file new_voiceover.mp3
+
+      - name: Merge video with new audio
+        run: |
+          ffmpeg -y \
+            -i original.mp4 \
+            -i new_voiceover.mp3 \
+            -c:v copy \
+            -c:a aac -b:a 192k \
+            -map 0:v:0 \
+            -map 1:a:0 \
+            -shortest \
+            reel-be-like-water-revoiced.mp4
+
+          echo "Output size: $(du -sh reel-be-like-water-revoiced.mp4)"
+
+      - name: Upload to reel-latest release
+        run: |
+          FILENAME="reel-be-like-water-revoiced.mp4"
+          echo "Uploading ${FILENAME} to reel-latest..."
+          gh release upload reel-latest "${FILENAME}" --clobber
+          echo "Done — Be Like Water re-voiced and live at reel-latest"
