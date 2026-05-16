@@ -442,6 +442,80 @@
       color: var(--gold);
     }
 
+
+    /* ── ADAPTATION SUGGESTIONS ── */
+    .adapt-panel {
+      margin-top: 16px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .adapt-panel-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .adapt-panel-label {
+      font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+      color: var(--gold); font-weight: 700;
+    }
+    .adapt-panel-sub { font-size: 11px; color: #555; }
+    .adapt-suggestions { display: flex; flex-direction: column; gap: 0; }
+    .adapt-item {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--black);
+    }
+    .adapt-item:last-child { border-bottom: none; }
+    .adapt-item-header {
+      display: flex; align-items: center; gap: 10px; margin-bottom: 8px;
+    }
+    .adapt-badge {
+      font-size: 9px; font-weight: 800; letter-spacing: 1.5px;
+      text-transform: uppercase; padding: 3px 8px; border-radius: 4px;
+      flex-shrink: 0;
+    }
+    .adapt-badge.style  { background: #1a1505; color: var(--gold); border: 1px solid #3a2f10; }
+    .adapt-badge.script { background: #0d1a1a; color: #4db8b8; border: 1px solid #1a3838; }
+    .adapt-badge.format { background: #1a0d1a; color: #b84db8; border: 1px solid #38183a; }
+    .adapt-item-title { font-size: 13px; font-weight: 700; color: var(--bone); }
+    .adapt-item-body { font-size: 12px; color: #888; line-height: 1.6; }
+    .adapt-insert {
+      margin-top: 10px;
+      background: #0d1305;
+      border: 1px solid #1a2e10;
+      border-radius: 6px;
+      padding: 10px 12px;
+    }
+    .adapt-insert-label {
+      font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase;
+      color: #4a8040; font-weight: 700; margin-bottom: 6px;
+    }
+    .adapt-insert-line {
+      font-size: 13px; color: var(--bone);
+      line-height: 1.6; margin-bottom: 6px;
+      padding-left: 10px; border-left: 2px solid #2a5a20;
+    }
+    .adapt-insert-line:last-child { margin-bottom: 0; }
+    .adapt-insert-word-count {
+      font-size: 10px; color: #4a8040; margin-top: 6px; font-style: italic;
+    }
+    .adapt-style-switch {
+      margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap;
+    }
+    .btn-switch-style {
+      background: none;
+      border: 1px solid var(--gold);
+      border-radius: 6px;
+      color: var(--gold);
+      font-size: 11px; font-weight: 700;
+      padding: 6px 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: inherit;
+    }
+    .btn-switch-style:hover { background: #1a1303; }
+
     @media (max-width: 600px) {
       .style-grid { grid-template-columns: 1fr; }
       header { padding: 14px 16px; }
@@ -479,6 +553,7 @@
       <textarea id="jsonPasteArea" placeholder='Paste your reel JSON spec here — e.g. { "concept": "...", "style_id": "style_2_identity", "target_duration_seconds": 45, "voiceover": { "full_text": "..." } }'></textarea>
       <button type="button" class="btn-load" id="loadSpecBtn">Load Spec</button>
       <div class="validation-report" id="validationReport"></div>
+      <div id="adaptationPanel"></div>
     </div>
   </div>
 

@@ -473,6 +473,186 @@ function exportJSON() {
 }
 
 
+
+// ══════════════════════════════════════════════════════════════
+// ADAPTATION SUGGESTION ENGINE
+// ══════════════════════════════════════════════════════════════
+
+const STYLE_TONE_VERBS = {
+  style_1_fractal:  ['dissolves', 'expands', 'spirals', 'returns', 'flows'],
+  style_2_identity: ['rises', 'transforms', 'emerges', 'becomes', 'chooses'],
+  style_3_hud:      ['calculates', 'executes', 'optimizes', 'processes', 'deploys'],
+  style_4_forge:    ['hammers', 'shapes', 'forges', 'endures', 'hardens'],
+  style_5_blueprint:['designs', 'builds', 'constructs', 'architects', 'engineers'],
+  style_6_obsidian: ['reflects', 'confronts', 'reveals', 'acknowledges', 'faces']
+};
+
+const EXTENSION_TEMPLATES = {
+  style_1_fractal: [
+    { placement: 'After the opening hook', text: 'Every pattern in nature repeats this truth — at every scale, the same principle holds. Nothing is exempt. Nothing escapes the geometry.' },
+    { placement: 'Middle — consequence beat', text: 'The people who understand this stop fighting the current. They read it. They let it carry them further than effort alone ever could.' },
+    { placement: 'Before the close', text: 'This is not philosophy. This is physics. The universe runs on this rule whether you acknowledge it or not.' }
+  ],
+  style_2_identity: [
+    { placement: 'After the opening hook', text: 'The version of you that wins already exists. It was forged in the moments you kept going when every signal said stop.' },
+    { placement: 'Middle — consequence beat', text: 'Most people wait for the feeling. The person who wins shows up before the feeling arrives — and that is the entire difference.' },
+    { placement: 'Before the close', text: 'Identity is not what you say you are. It is the pattern of what you do when no one is watching and nothing is guaranteed.' }
+  ],
+  style_3_hud: [
+    { placement: 'After the opening hook', text: 'The mind is a system. Every input creates an output. Control the inputs long enough and the outputs stop surprising you.' },
+    { placement: 'Middle — consequence beat', text: 'Emotion is data. Discipline is a protocol. The person who separates the two gets to operate without interference from either.' },
+    { placement: 'Before the close', text: 'You already have the processing power. What most people lack is the clarity to run the right program.' }
+  ],
+  style_4_forge: [
+    { placement: 'After the opening hook', text: 'The blacksmith does not curse the iron for being hard. The resistance is the material. The resistance is the point.' },
+    { placement: 'Middle — consequence beat', text: 'Every time you wanted to quit and did not — that was a strike. You were building something. You may not have known it yet.' },
+    { placement: 'Before the close', text: 'The ones who cannot handle the heat never find out what they could have become. You are still here. That means something.' }
+  ],
+  style_5_blueprint: [
+    { placement: 'After the opening hook', text: 'The mistake most people make is starting to build before they have the blueprint. Then they wonder why the structure keeps collapsing.' },
+    { placement: 'Middle — consequence beat', text: 'Clarity is not a luxury. It is load-bearing. Remove it and the entire system shifts. Install it and everything downstream becomes easier.' },
+    { placement: 'Before the close', text: 'Design your environment, your inputs, your defaults. The person who architects their own context does not need motivation — the system provides direction.' }
+  ],
+  style_6_obsidian: [
+    { placement: 'After the opening hook', text: 'The mirror does not lie. It only shows what you have been unwilling to look at long enough to understand.' },
+    { placement: 'Middle — consequence beat', text: 'The patterns you keep repeating are not accidents. They are answers to questions you have not asked yourself yet.' },
+    { placement: 'Before the close', text: 'This is not about judgment. It is about information. What you see in that reflection is the exact data you need to move forward.' }
+  ]
+};
+
+function getStyleAlignment(concept, selectedStyleId) {
+  if (!concept || concept.length < 10) return null;
+  const c = concept.toLowerCase();
+  const scores = {};
+  for (const [styleId, style] of Object.entries(STYLES)) {
+    scores[styleId] = 0;
+    for (const kw of (style.keywords || [])) {
+      if (c.includes(kw.toLowerCase())) scores[styleId]++;
+    }
+  }
+  const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+  const [bestId, bestScore] = sorted[0] || [];
+  if (bestId && bestId !== selectedStyleId && bestScore > 0) {
+    return { suggestedId: bestId, suggestedName: STYLES[bestId]?.name, score: bestScore };
+  }
+  return null;
+}
+
+function getScriptExtensions(styleId, wordGap) {
+  const templates = EXTENSION_TEMPLATES[styleId] || EXTENSION_TEMPLATES.style_1_fractal;
+  // Pick how many lines based on gap
+  const linesNeeded = wordGap <= 30 ? 1 : wordGap <= 60 ? 2 : 3;
+  return templates.slice(0, linesNeeded);
+}
+
+function getPlatformFormatNotes(target) {
+  const notes = [];
+  if (target < 15) {
+    notes.push({ type: 'format', title: 'Duration very short: < 15s', body: 'Under 15s limits narrative arc. Consider 30s minimum for a complete message.' });
+  } else if (target > 60) {
+    notes.push({ type: 'format', title: 'Duration over 60s — completion rate risk', body: 'Instagram Reels above 60s see significantly lower watch-through rates. 38s is the engine sweet spot. Consider splitting into two reels.' });
+  } else if (target >= 35 && target <= 42) {
+    notes.push({ type: 'format', title: `${target}s — optimal range`, body: 'This duration sits in the 35-42s sweet spot: enough for a full narrative arc while maintaining strong completion rates.' });
+  }
+  return notes;
+}
+
+function buildAdaptationSuggestions(spec) {
+  const concept = spec.concept || spec.theme || '';
+  const styleId  = spec.style_id || selectedStyle;
+  const target   = spec.target_duration_seconds || spec.duration_seconds || 38;
+  const voiceText = spec.voiceover?.full_text || spec.voiceover_script || spec.script || '';
+  const { words, seconds } = voiceText ? estimateAudioDuration(voiceText) : { words: 0, seconds: 0 };
+  const wordsNeeded = Math.ceil(target * WORDS_PER_SECOND);
+  const wordGap = wordsNeeded - words;
+
+  const suggestions = [];
+
+  // A. Style alignment
+  const alignment = getStyleAlignment(concept, styleId);
+  if (alignment) {
+    suggestions.push({
+      type: 'style',
+      badge: 'Style',
+      title: `Keyword match suggests: ${alignment.suggestedName}`,
+      body: `Your concept keywords align more closely with "${alignment.suggestedName}" (${alignment.score} keyword hit${alignment.score > 1 ? 's' : ''}). Your current style is "${STYLES[styleId]?.name || styleId}". Both can work — this is a suggestion.`,
+      switchTo: alignment.suggestedId
+    });
+  }
+
+  // B. Script extensions (only if there is an actual gap)
+  if (voiceText && wordGap > 15) {
+    const lines = getScriptExtensions(styleId, wordGap);
+    suggestions.push({
+      type: 'script',
+      badge: 'Script',
+      title: `Add ~${wordGap} words to reach ${target}s — ${lines.length} insertion point${lines.length > 1 ? 's' : ''}`,
+      body: `At ${WORDS_PER_SECOND} words/sec, you need ~${wordsNeeded} words for ${target}s. Current script is ${words} words (~${seconds}s). Insert the lines below in the indicated positions.`,
+      insertions: lines.map(l => ({
+        ...l,
+        words: l.text.split(' ').length
+      }))
+    });
+  }
+
+  // C. Platform format notes
+  const formatNotes = getPlatformFormatNotes(target);
+  for (const note of formatNotes) {
+    suggestions.push({ type: 'format', badge: 'Format', title: note.title, body: note.body });
+  }
+
+  return suggestions;
+}
+
+function renderAdaptationSuggestions(suggestions) {
+  const container = document.getElementById('adaptationPanel');
+  if (!container) return;
+  if (!suggestions || suggestions.length === 0) {
+    container.innerHTML = '';
+    return;
+  }
+
+  const itemsHtml = suggestions.map(s => {
+    const insertHtml = s.insertions ? s.insertions.map(ins => `
+      <div class="adapt-insert">
+        <div class="adapt-insert-label">${escapeHtml(ins.placement)}</div>
+        <div class="adapt-insert-line">"${escapeHtml(ins.text)}"</div>
+        <div class="adapt-insert-word-count">+${ins.words} words (~${Math.round(ins.words / WORDS_PER_SECOND)}s)</div>
+      </div>
+    `).join('') : '';
+
+    const switchHtml = s.switchTo ? `
+      <div class="adapt-style-switch">
+        <button type="button" class="btn-switch-style" onclick="selectStyle('${escapeHtml(s.switchTo)}', true)">
+          Switch to ${escapeHtml(STYLES[s.switchTo]?.name || s.switchTo)}
+        </button>
+      </div>
+    ` : '';
+
+    return `
+      <div class="adapt-item">
+        <div class="adapt-item-header">
+          <div class="adapt-badge ${s.type}">${s.badge}</div>
+          <div class="adapt-item-title">${escapeHtml(s.title)}</div>
+        </div>
+        <div class="adapt-item-body">${escapeHtml(s.body)}</div>
+        ${insertHtml}
+        ${switchHtml}
+      </div>
+    `;
+  }).join('');
+
+  container.innerHTML = `
+    <div class="adapt-panel">
+      <div class="adapt-panel-header">
+        <div class="adapt-panel-label">Adaptation Suggestions</div>
+        <div class="adapt-panel-sub">${suggestions.length} recommendation${suggestions.length > 1 ? 's' : ''}</div>
+      </div>
+      <div class="adapt-suggestions">${itemsHtml}</div>
+    </div>
+  `;
+}
+
 // ── SPEAKING RATE ── ~2.3 words/second for motivational content
 const WORDS_PER_SECOND = 2.3;
 
@@ -595,6 +775,10 @@ function loadSpec() {
   // Run validation
   const rows = buildValidationReport(spec);
   renderValidationReport(rows);
+
+  // Run adaptation suggestions
+  const suggestions = buildAdaptationSuggestions(spec);
+  renderAdaptationSuggestions(suggestions);
 
   // Scroll to form
   document.getElementById('importCard')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
