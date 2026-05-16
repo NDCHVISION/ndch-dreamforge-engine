@@ -472,6 +472,150 @@ function exportJSON() {
   URL.revokeObjectURL(url);
 }
 
+
+// ── SPEAKING RATE ── ~2.3 words/second for motivational content
+const WORDS_PER_SECOND = 2.3;
+
+function estimateAudioDuration(text) {
+  const words = text.trim().split(/\s+/).filter(Boolean).length;
+  return { words, seconds: Math.round(words / WORDS_PER_SECOND) };
+}
+
+function buildValidationReport(spec) {
+  const rows = [];
+  const concept = spec.concept || spec.theme || '';
+  const styleId = spec.style_id || '';
+  const target = spec.target_duration_seconds || spec.duration_seconds || 38;
+  const voiceoverText = spec.voiceover?.full_text || spec.voiceover_script || spec.script || '';
+
+  // 1. Concept present
+  if (concept.trim().length > 10) {
+    rows.push({ status: 'ok', icon: '✓', title: 'Concept found', detail: `"${concept.slice(0, 80)}${concept.length > 80 ? '…' : ''}"` });
+  } else {
+    rows.push({ status: 'warn', icon: '⚠', title: 'Concept missing or too short', detail: 'No concept text found. Fill in the concept field manually.' });
+  }
+
+  // 2. Style valid
+  if (styleId && STYLES[styleId]) {
+    rows.push({ status: 'ok', icon: '✓', title: `Style: ${STYLES[styleId].name}`, detail: `style_id: ${styleId}` });
+  } else if (styleId) {
+    rows.push({ status: 'warn', icon: '⚠', title: `Unknown style: ${styleId}`, detail: 'This style ID is not in the current library. Style_1_fractal will be used.' });
+  } else {
+    rows.push({ status: 'warn', icon: '⚠', title: 'No style_id specified', detail: 'Auto-select will be used based on concept keywords.' });
+  }
+
+  // 3. Duration vs script length
+  if (voiceoverText.trim().length > 0) {
+    const { words, seconds } = estimateAudioDuration(voiceoverText);
+    const ratio = seconds / target;
+    const wordsNeeded = Math.ceil(target * WORDS_PER_SECOND);
+    const wordGap = wordsNeeded - words;
+
+    if (ratio >= 0.88) {
+      rows.push({ status: 'ok', icon: '✓', title: `Duration looks good: ~${seconds}s audio vs ${target}s target`, detail: `${words} words at ${WORDS_PER_SECOND} w/s ≈ ${seconds}s` });
+    } else if (ratio >= 0.65) {
+      rows.push({
+        status: 'warn', icon: '⚠',
+        title: `Script short: ~${seconds}s audio vs ${target}s target`,
+        detail: `${words} words → ~${seconds}s. Target needs ~${wordsNeeded} words.`,
+        fix: `Add ~${wordGap} words to the voiceover script.\nTip: extend the middle section — add a second example or deeper consequence beat.`
+      });
+    } else {
+      rows.push({
+        status: 'error', icon: '✗',
+        title: `Script too short: ~${seconds}s audio vs ${target}s target`,
+        detail: `${words} words → ~${seconds}s. Reel will be ${target - seconds}s shorter than intended.`,
+        fix: `Add ~${wordGap} words (${Math.round(wordGap / WORDS_PER_SECOND)}s of extra speech).\nConsider: set target_duration_seconds to ${seconds} to match the existing script, OR\nextend the script with 2-3 more sentences in the middle.`
+      });
+    }
+  } else {
+    rows.push({ status: 'warn', icon: '⚠', title: 'No voiceover script found', detail: 'Cannot estimate audio duration. The engine will generate a new script.' });
+  }
+
+  // 4. Credits check
+  const clips = Math.ceil(target / 10);
+  const credits = clips * 120;
+  rows.push({ status: 'ok', icon: '◆', title: `Estimated cost: ${credits} Runway credits`, detail: `${clips} clips × 120 credits = ${credits} total for ${target}s` });
+
+  return rows;
+}
+
+function renderValidationReport(rows) {
+  const container = document.getElementById('validationReport');
+  if (!container) return;
+  container.innerHTML = rows.map(row => `
+    <div class="val-row ${row.status}">
+      <div class="val-icon">${row.icon}</div>
+      <div class="val-text">
+        <strong>${escapeHtml(row.title)}</strong>
+        ${escapeHtml(row.detail)}
+        ${row.fix ? `<div class="val-fix">${escapeHtml(row.fix)}</div>` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+function loadSpec() {
+  const raw = document.getElementById('jsonPasteArea')?.value?.trim();
+  if (!raw) return;
+
+  let spec;
+  try {
+    spec = JSON.parse(raw);
+  } catch (e) {
+    renderValidationReport([{ status: 'error', icon: '✗', title: 'Invalid JSON', detail: `Parse error: ${e.message}` }]);
+    return;
+  }
+
+  // Populate fields
+  const concept = spec.concept || spec.theme || '';
+  if (concept) {
+    const input = document.getElementById('conceptInput');
+    if (input) {
+      input.value = concept;
+      document.getElementById('charCount').textContent = String(concept.length);
+    }
+  }
+
+  const styleId = spec.style_id || '';
+  if (styleId && STYLES[styleId]) {
+    selectStyle(styleId, true);
+  } else if (concept) {
+    manualStyleOverride = false;
+    autoSelectStyle(concept);
+  }
+
+  const duration = spec.target_duration_seconds || spec.duration_seconds;
+  if (duration && DURATION_NOTES[duration] !== undefined || duration) {
+    // Add to DURATION_NOTES if not present
+    if (!DURATION_NOTES[duration]) DURATION_NOTES[duration] = `${duration}s — from imported spec.`;
+    selectDuration(duration);
+  }
+
+  // Run validation
+  const rows = buildValidationReport(spec);
+  renderValidationReport(rows);
+
+  // Scroll to form
+  document.getElementById('importCard')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function setupImportPanel() {
+  const toggle = document.getElementById('importToggle');
+  const body = document.getElementById('importBody');
+  const chevron = document.getElementById('importChevron');
+  const loadBtn = document.getElementById('loadSpecBtn');
+
+  if (toggle && body && chevron) {
+    toggle.addEventListener('click', () => {
+      const isOpen = body.classList.toggle('open');
+      chevron.classList.toggle('open', isOpen);
+    });
+  }
+
+  if (loadBtn) loadBtn.addEventListener('click', loadSpec);
+}
+
 function setupUiEvents() {
   const conceptInput = document.getElementById('conceptInput');
   conceptInput.addEventListener('input', () => {
@@ -533,6 +677,7 @@ function setupUiEvents() {
 }
 
 setupUiEvents();
+setupImportPanel();
 refreshStyleCards();
 selectStyle('style_1_fractal', false);
 selectDuration(38);

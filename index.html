@@ -377,6 +377,71 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
+
+    /* ── IMPORT PANEL ── */
+    .import-toggle {
+      display: flex; align-items: center; justify-content: space-between;
+      cursor: pointer; user-select: none;
+    }
+    .import-toggle-label {
+      font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
+      color: #666; font-weight: 700;
+    }
+    .import-toggle-label span { color: var(--gold); }
+    .import-chevron {
+      font-size: 12px; color: #555;
+      transition: transform 0.2s;
+    }
+    .import-chevron.open { transform: rotate(180deg); }
+    .import-body { display: none; margin-top: 16px; }
+    .import-body.open { display: block; }
+    .import-body textarea {
+      min-height: 110px;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+    }
+    .btn-load {
+      margin-top: 10px;
+      background: none;
+      border: 1px solid var(--gold);
+      border-radius: 7px;
+      color: var(--gold);
+      font-size: 12px; font-weight: 700;
+      letter-spacing: 0.5px;
+      padding: 9px 20px;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: inherit;
+    }
+    .btn-load:hover { background: #1a1303; }
+
+    /* ── VALIDATION REPORT ── */
+    .validation-report { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
+    .val-row {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 10px 14px;
+      border-radius: 7px;
+      border: 1px solid var(--border);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    .val-row.ok    { background: #0a1a0a; border-color: #1a4a1a; }
+    .val-row.warn  { background: #1a1200; border-color: #4a3800; }
+    .val-row.error { background: #1a0808; border-color: #4a1010; }
+    .val-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+    .val-text { color: #ccc; }
+    .val-text strong { color: var(--bone); display: block; margin-bottom: 2px; }
+    .val-fix {
+      margin-top: 6px;
+      padding: 8px 12px;
+      background: var(--black);
+      border-radius: 5px;
+      border: 1px solid var(--border);
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+      color: var(--gold);
+    }
+
     @media (max-width: 600px) {
       .style-grid { grid-template-columns: 1fr; }
       header { padding: 14px 16px; }
@@ -402,6 +467,19 @@
   <div class="hero">
     <h1>NDCH Dreamforge Engine</h1>
     <p>Input a concept. The engine auto-selects your visual style, writes the voiceover script, and generates your complete production package — ready for Runway, ElevenLabs, and Instagram.</p>
+  </div>
+
+  <!-- IMPORT JSON PANEL -->
+  <div class="card" id="importCard">
+    <div class="import-toggle" id="importToggle">
+      <div class="import-toggle-label">Import Existing Spec &nbsp;<span>→ paste JSON to pre-fill + validate</span></div>
+      <div class="import-chevron" id="importChevron">▼</div>
+    </div>
+    <div class="import-body" id="importBody">
+      <textarea id="jsonPasteArea" placeholder='Paste your reel JSON spec here — e.g. { "concept": "...", "style_id": "style_2_identity", "target_duration_seconds": 45, "voiceover": { "full_text": "..." } }'></textarea>
+      <button type="button" class="btn-load" id="loadSpecBtn">Load Spec</button>
+      <div class="validation-report" id="validationReport"></div>
+    </div>
   </div>
 
   <!-- INPUT SECTION -->
