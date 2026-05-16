@@ -2,17 +2,27 @@
   "reelId": "NDCH_010_SIGNAL_NOISE",
   "engineVersion": "1.0.0",
   "status": "production_ready",
-
   "concept": "Signal vs Noise — the power of focus in a chaotic world",
   "theme": "The Law of the Signal",
-
   "voiceover": {
     "full_text": "Your focus is the most expensive thing you own. And you're giving it away for free. The world is a broadcast of distraction designed to keep you on their frequency. But the greats? They operate on a different signal. They don't have better ideas. They just have less noise. Turn it off. The news, the gossip, the 'experts.' Find your own frequency. The signal is only clear in the silence.",
     "segments": [
-      { "id": "hook",     "text": "Your focus is the most expensive thing you own. And you're giving it away for free." },
-      { "id": "truth",    "text": "The world is a broadcast of distraction designed to keep you on their frequency. But the greats? They operate on a different signal." },
-      { "id": "process",  "text": "They don't have better ideas. They just have less noise." },
-      { "id": "identity", "text": "Turn it off. The news, the gossip, the 'experts.' Find your own frequency. The signal is only clear in the silence." }
+      {
+        "id": "hook",
+        "text": "Your focus is the most expensive thing you own. And you're giving it away for free."
+      },
+      {
+        "id": "truth",
+        "text": "The world is a broadcast of distraction designed to keep you on their frequency. But the greats? They operate on a different signal."
+      },
+      {
+        "id": "process",
+        "text": "They don't have better ideas. They just have less noise."
+      },
+      {
+        "id": "identity",
+        "text": "Turn it off. The news, the gossip, the 'experts.' Find your own frequency. The signal is only clear in the silence."
+      }
     ],
     "elevenLabs_config": {
       "voice_id": "C9Uh5MFptuXa176UlaXE",
@@ -22,22 +32,18 @@
       }
     }
   },
-
   "visual_prompt": "A screen filled with chaotic crimson #DC143C static and thousands of bone #F5F2EB words flying randomly. A gold #C6A94F HUD appears and begins to filter the noise. The static clears, and the random words align into a single, glowing golden line of energy that vibrates with power. The background becomes a deep, clean black #1A1A1A.",
-
   "style": "style3hud",
-
   "target_duration_seconds": 38,
-
   "instagram_config": {
     "caption": "Protect your frequency. 📶\n\nHigh output requires low noise. If you want to create something great, you have to stop listening to everything small.\n\nTag someone who needs to focus.\n\n#focus #deepwork #productivity #mindset #ndch",
     "cover_frame": "0:30",
     "share_to_feed": true
   },
-
   "subtitle_config": {
     "enabled": true,
     "color": "#F5F2EB",
     "highlight": "#C6A94F"
-  }
+  },
+  "style_id": "style_3_hud"
 }

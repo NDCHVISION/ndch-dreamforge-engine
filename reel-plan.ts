@@ -364,6 +364,19 @@ export function resolveProductionPlan(
     [concept, script, env.REEL_PROMPT ?? ''].filter(Boolean).join(' ')
   );
 
+  // Enrich segment prompts with style camera notes for Runway directorial guidance
+  const styleLibrary = pickValue(engineConfig, [['engine', 'style_library']]);
+  const selectedStyle = selectedStyleId && isRecord(styleLibrary) && isRecord((styleLibrary as Record<string, unknown>)[selectedStyleId])
+    ? (styleLibrary as Record<string, unknown>)[selectedStyleId]
+    : undefined;
+  const styleCameraNotes = selectedStyle ? pickString(selectedStyle, [['camera_notes']]) : undefined;
+  const enrichedSegments: ResolvedNarrationSegment[] = styleCameraNotes
+    ? explicitSegments.map(seg => ({
+        ...seg,
+        promptText: seg.promptText ? `${seg.promptText} Camera: ${styleCameraNotes}.` : seg.promptText,
+      }))
+    : explicitSegments;
+
   const prompt = buildBasePrompt(
     engineConfig,
     reelSpec,
@@ -442,7 +455,7 @@ export function resolveProductionPlan(
     concept,
     selectedStyleId,
     script,
-    narrationSegments: explicitSegments,
+    narrationSegments: enrichedSegments,
     prompt,
     targetDurationSeconds,
     elevenLabs: {
