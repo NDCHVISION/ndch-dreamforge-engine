@@ -68,6 +68,7 @@ interface ReelOptions {
   caption?: string;
   shareToFeed?: boolean;
   thumbOffset?: number;
+  coverUrl?: string;
 }
 
 // ── Error class ───────────────────────────────────────────────────────────────
@@ -177,6 +178,7 @@ async function createContainer(opts: ReelOptions): Promise<string> {
   };
   if (opts.caption) params.caption = opts.caption;
   if (opts.thumbOffset !== undefined) params.thumb_offset = String(opts.thumbOffset);
+  if (opts.coverUrl) params.cover_url = opts.coverUrl;
 
   const { id } = await gql<{ id: string }>(
     `/${config.igAccountId}/media`,
@@ -255,7 +257,7 @@ const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
 
 async function runCli(): Promise<void> {
   const config = getConfig();
-  const { videoUrl, caption, thumbOffset, shareToFeed } = config;
+  const { videoUrl, caption, thumbOffset, shareToFeed, coverUrl } = config;
 
   if (!videoUrl) throw new Error('Missing required env var: REEL_VIDEO_URL');
 
@@ -265,7 +267,7 @@ async function runCli(): Promise<void> {
   console.log(`  video      : ${videoUrl}`);
   console.log('');
 
-  const mediaId = await publishReel({ videoUrl, caption, shareToFeed: shareToFeed ?? true, thumbOffset });
+  const mediaId = await publishReel({ videoUrl, caption, shareToFeed: shareToFeed ?? true, thumbOffset, coverUrl });
   console.log('');
   console.log(`✓  Reel live — media id: ${mediaId}`);
 }

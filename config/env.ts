@@ -36,6 +36,7 @@ export interface PublishRuntimeConfig {
   caption?: string;
   thumbOffset?: number;
   shareToFeed?: boolean;
+  coverUrl?: string;
 }
 
 export function getRequiredString(env: NodeJS.ProcessEnv, name: string): string {
@@ -174,5 +175,6 @@ export function loadPublishRuntimeConfig(env: NodeJS.ProcessEnv): PublishRuntime
     caption: getOptionalString(env, 'REEL_CAPTION'),
     thumbOffset: getOptionalNumber(env, 'REEL_THUMB_OFFSET_MS', { integer: true, min: 0 }),
     shareToFeed: getOptionalBoolean(env, 'REEL_SHARE_TO_FEED'),
+    coverUrl: getOptionalString(env, 'REEL_COVER_URL'),
   };
 }

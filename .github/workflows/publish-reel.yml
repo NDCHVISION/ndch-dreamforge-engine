@@ -87,6 +87,26 @@ jobs:
             /tmp/runway-06.mp4
           key: runway-clips-${{ inputs.reel_spec_path || 'env' }}-${{ github.run_id }}
 
+
+      - name: Upload reel cover to release
+        if: ${{ inputs.reel_spec_path != '' && inputs.reel_spec_path != null }}
+        run: |
+          COVER=$(jq -r '.cover_asset_path // empty' "$REEL_SPEC_PATH" 2>/dev/null || true)
+          if [ -n "$COVER" ] && [ -f "$COVER" ]; then
+            echo "Uploading cover image: $COVER"
+            gh release upload reel-latest "$COVER" --clobber
+            COVER_FILENAME=$(basename "$COVER")
+            COVER_URL=$(gh release view reel-latest --json assets \
+              -q ".assets[] | select(.name == \"$COVER_FILENAME\") | .browserDownloadUrl")
+            echo "REEL_COVER_URL=$COVER_URL" >> "$GITHUB_ENV"
+            echo "Cover URL set: $COVER_URL"
+          else
+            echo "No cover_asset_path in spec or file missing — skipping cover upload"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REEL_SPEC_PATH: ${{ inputs.reel_spec_path }}
+
       - name: Surface resolved production plan
         if: ${{ env.REEL_RESOLVED_PLAN_PATH != '' }}
         run: |
@@ -113,4 +133,5 @@ jobs:
           FB_PAGE_ID:             "782632291594234"
           REEL_VIDEO_URL:         ${{ env.REEL_VIDEO_URL }}
           REEL_CAPTION:           ${{ env.REEL_CAPTION || inputs.caption }}
+          REEL_COVER_URL:         ${{ env.REEL_COVER_URL }}
         run: npm run publish
