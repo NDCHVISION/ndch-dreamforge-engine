@@ -8,7 +8,7 @@ const STYLES = {
     name: 'Fractal Gold Architecture',
     desc: 'Surreal, looping fractal visuals with liquid gold tones and sacred geometry.',
     keywords: ['water', 'flow', 'adapt', 'resilience', 'nature', 'universe', 'cosmos'],
-    prompt: concept => `Create a surreal looping reel about ${concept} — liquid gold fractal geometry, sacred architecture dissolving into light, hyper-detailed cinematic motion, 4K, slow zoom, spiritual aesthetic, no text overlays.`,
+    prompt: concept => `Create a surreal looping reel about ${concept} - liquid gold fractal geometry, sacred architecture dissolving into light, hyper-detailed cinematic motion, 4K, slow zoom, spiritual aesthetic, no text overlays.`,
     negative: 'text, words, logos, low-res, watermark, subtitles baked into frame',
     sceneNotes: 'Camera: slow push-in with orbital drift\nMotion: smooth and meditative\nKeep center clear for subtitles'
   },
@@ -16,7 +16,7 @@ const STYLES = {
     name: 'Identity & Shadow Self',
     desc: 'Dark cinematic portraiture, silhouettes, intense transformation energy.',
     keywords: ['identity', 'self', 'shadow', 'purpose', 'strength', 'warrior', 'discipline'],
-    prompt: concept => `Create a cinematic reel about ${concept} — dark dramatic portraiture, silhouette against golden light, slow motion dust and fabric, intense personal transformation aesthetic, 4K, no text overlays.`,
+    prompt: concept => `Create a cinematic reel about ${concept} - dark dramatic portraiture, silhouette against golden light, slow motion dust and fabric, intense personal transformation aesthetic, 4K, no text overlays.`,
     negative: 'text, words, logos, clutter, bright daytime, low detail',
     sceneNotes: 'Camera: centered portrait push-in\nMotion: emotionally escalating\nKeep headroom for subtitle safety margins'
   },
@@ -24,23 +24,23 @@ const STYLES = {
     name: 'HUD Neural Grid',
     desc: 'Futuristic HUD overlays and neural-grid sci-fi atmosphere.',
     keywords: ['mind', 'brain', 'focus', 'ai', 'future', 'system', 'code', 'logic'],
-    prompt: concept => `Create a futuristic reel about ${concept} — HUD data overlays, neural network grid lines, electric blue and gold accents, cinematic motion, 4K, no readable text.`,
+    prompt: concept => `Create a futuristic reel about ${concept} - HUD data overlays, neural network grid lines, electric blue and gold accents, cinematic motion, 4K, no readable text.`,
     negative: 'text, words, logos, noisy clutter, low-contrast lighting',
     sceneNotes: 'Camera: mostly locked with parallax\nMotion: precise data-layer evolution\nSubtitle-safe center region'
-  }
+  },
   style_4_forge: {
     name: 'Forge & Ember',
     desc: 'Molten metal, falling sparks, raw craft under extreme pressure. Best for: hard work, effort, building, discipline.',
     keywords: ['forge', 'fire', 'heat', 'pressure', 'molten', 'iron', 'craft', 'hammer', 'steel', 'build', 'make'],
-    prompt: concept => `Create a dramatic reel about ${concept} — extreme close-up of glowing molten metal and cascading sparks against pure black, liquid gold solidifying into form, slow motion ember drift, cinematic 4K, no text overlays.`,
+    prompt: concept => `Create a dramatic reel about ${concept} - extreme close-up of glowing molten metal and cascading sparks against pure black, liquid gold solidifying into form, slow motion ember drift, cinematic 4K, no text overlays.`,
     negative: 'text, words, logos, bright daylight, clean spaces, static imagery',
     sceneNotes: 'Camera: extreme macro close-up on forge details\nMotion: ultra-slow motion sparks and metal pour\nKeep center clear for subtitle safe zone'
   },
   style_5_blueprint: {
     name: 'Blueprint Architect',
-    desc: 'Gold technical line drawings on black — systems, frameworks, deliberate construction. Best for: strategy, planning, systems.',
+    desc: 'Gold technical line drawings on black - systems, frameworks, deliberate construction. Best for: strategy, planning, systems.',
     keywords: ['plan', 'design', 'architect', 'framework', 'structure', 'system', 'strategy', 'foundation', 'construct', 'engineer'],
-    prompt: concept => `Create a reel about ${concept} — precise gold architectural blueprint lines drawing themselves on deep black, geometric forms constructing from nothing, elegant technical diagrams morphing in sequence, cinematic 4K, no readable text.`,
+    prompt: concept => `Create a reel about ${concept} - precise gold architectural blueprint lines drawing themselves on deep black, geometric forms constructing from nothing, elegant technical diagrams morphing in sequence, cinematic 4K, no readable text.`,
     negative: 'text, words, messy clutter, noise, bright backgrounds, chaotic imagery',
     sceneNotes: 'Camera: slow reveal zoom on constructing line elements\nMotion: lines drawing themselves in real time\nSubtitle-safe center corridor'
   },
@@ -48,17 +48,17 @@ const STYLES = {
     name: 'Obsidian Mirror',
     desc: 'Polished dark reflective surfaces, confrontational stillness, bone-white light. Best for: self-honesty, truth, clarity.',
     keywords: ['reflection', 'mirror', 'truth', 'honest', 'confront', 'face', 'clarity', 'reveal', 'acknowledge', 'see'],
-    prompt: concept => `Create a cinematic reel about ${concept} — polished obsidian and dark mirror surfaces, a figure standing before their distorted reflection, bone-white light source, deep crimson shadow accents, meditative stillness, 4K, no text overlays.`,
+    prompt: concept => `Create a cinematic reel about ${concept} - polished obsidian and dark mirror surfaces, a figure standing before their distorted reflection, bone-white light source, deep crimson shadow accents, meditative stillness, 4K, no text overlays.`,
     negative: 'text, words, logos, bright colors, busy patterns, rapid cuts',
     sceneNotes: 'Camera: slow pull-back reveal, symmetrical framing\nMotion: minimal and contemplative\nMirror symmetry for maximum psychological impact'
   }
 };
 
 const DURATION_NOTES = {
-  15: '15s — maximum completion rate for hook-led clips.',
-  30: '30s — balanced reach and retention.',
-  38: '38s — engine default sweet spot for full narrative arc.',
-  60: '60s — deeper storytelling with lower completion rates.'
+  15: '15s - maximum completion rate for hook-led clips.',
+  30: '30s - balanced reach and retention.',
+  38: '38s - engine default sweet spot for full narrative arc.',
+  60: '60s - deeper storytelling with lower completion rates.'
 };
 
 function toNumber(value) {
@@ -126,7 +126,7 @@ async function loadEngineConfig() {
     const durationDefault = toNumber(engine?.virality_data?.duration_strategy?.engine_default_seconds);
     if (Number.isInteger(durationDefault) && durationDefault > 0) {
       if (!DURATION_NOTES[durationDefault]) {
-        DURATION_NOTES[durationDefault] = `${durationDefault}s — engine default duration.`;
+        DURATION_NOTES[durationDefault] = `${durationDefault}s - engine default duration.`;
       }
       const defaultBtn = document.querySelector(`.dur-btn[data-dur="${durationDefault}"]`);
       if (defaultBtn) {
@@ -163,19 +163,48 @@ function selectStyle(styleId, manual) {
   if (!STYLES[styleId]) return;
   if (manual) manualStyleOverride = true;
   selectedStyle = styleId;
-  document.querySelectorAll('.style-card').forEach(card => card.classList.remove('active', 'auto-selected'));
+  document.querySelectorAll('.style-card').forEach(card => {
+    card.classList.remove('active', 'auto-selected');
+    card.style.removeProperty('border-color');
+    card.style.removeProperty('border-width');
+    card.style.removeProperty('background');
+    card.style.removeProperty('box-shadow');
+  });
   const card = document.querySelector(`.style-card[data-style="${styleId}"]`);
   if (card) {
     card.classList.add('active');
+    // Belt-and-suspenders: also force inline styles so CSS cache can't hide it
+    card.style.borderColor = '#C6A94F';
+    card.style.borderWidth = '2px';
+    card.style.background = '#1a1303';
+    card.style.boxShadow = '0 0 0 1px rgba(198,169,79,0.35), 0 4px 20px rgba(198,169,79,0.15)';
+    const nameEl = card.querySelector('.style-name');
+    if (nameEl) nameEl.style.color = '#C6A94F';
     if (!manual) card.classList.add('auto-selected');
   }
 }
 
 function selectDuration(duration) {
   selectedDuration = duration;
-  document.querySelectorAll('.dur-btn').forEach(btn => btn.classList.remove('active'));
+  document.querySelectorAll('.dur-btn').forEach(btn => {
+    btn.classList.remove('active');
+    btn.style.removeProperty('border-color');
+    btn.style.removeProperty('border-width');
+    btn.style.removeProperty('color');
+    btn.style.removeProperty('background');
+    btn.style.removeProperty('font-weight');
+    btn.style.removeProperty('box-shadow');
+  });
   const btn = document.querySelector(`.dur-btn[data-dur="${duration}"]`);
-  if (btn) btn.classList.add('active');
+  if (btn) {
+    btn.classList.add('active');
+    btn.style.borderColor = '#C6A94F';
+    btn.style.borderWidth = '2px';
+    btn.style.color = '#C6A94F';
+    btn.style.background = '#1a1303';
+    btn.style.fontWeight = '700';
+    btn.style.boxShadow = '0 0 0 1px rgba(198,169,79,0.2)';
+  }
   document.getElementById('durNote').textContent = DURATION_NOTES[duration] ?? `${duration}s selected.`;
 }
 
@@ -261,7 +290,7 @@ function generateVoiceover(concept, duration) {
       { start: '0:00', end: '0:03', text: 'Amateurs react. Architects design.', note: 'Contrast hook.' },
       { start: '0:03', end: '0:10', text: `The person who controls the blueprint controls the outcome.`, note: 'Core principle.' },
       { start: '0:10', end: '0:18', text: 'Start with the end in mind. Work backward. Remove everything that does not serve the structure.', note: 'Framework beat.' },
-      { start: '0:18', end: '0:26', text: 'The most powerful move you will ever make is deciding on purpose — before the pressure arrives.', note: 'Depth moment.' },
+      { start: '0:18', end: '0:26', text: 'The most powerful move you will ever make is deciding on purpose - before the pressure arrives.', note: 'Depth moment.' },
       { start: '0:26', end: '0:34', text: 'Build the system. Trust the system. Become the system.', note: 'Triplet rhythm.' },
       { start: '0:34', end: '0:38', text: 'Draw the blueprint. Then build it.', note: 'Action close.' }
     ];
@@ -316,9 +345,9 @@ function generateCaption(concept) {
 
 function renderSuggestions() {
   const nextIdeas = [
-    { concept: 'The value of silence — most people talk, winners are building', style: 'HUD Neural Grid' },
-    { concept: 'Pressure creates diamonds — everything valuable was forged under weight', style: 'Identity & Shadow Self' },
-    { concept: 'You were not built for comfort — discomfort is the signal you are growing', style: 'Fractal Gold Architecture' }
+    { concept: 'The value of silence - most people talk, winners are building', style: 'HUD Neural Grid' },
+    { concept: 'Pressure creates diamonds - everything valuable was forged under weight', style: 'Identity & Shadow Self' },
+    { concept: 'You were not built for comfort - discomfort is the signal you are growing', style: 'Fractal Gold Architecture' }
   ];
 
   document.getElementById('suggestions').innerHTML = nextIdeas.map(item => `
@@ -489,33 +518,33 @@ const STYLE_TONE_VERBS = {
 
 const EXTENSION_TEMPLATES = {
   style_1_fractal: [
-    { placement: 'After the opening hook', text: 'Every pattern in nature repeats this truth — at every scale, the same principle holds. Nothing is exempt. Nothing escapes the geometry.' },
-    { placement: 'Middle — consequence beat', text: 'The people who understand this stop fighting the current. They read it. They let it carry them further than effort alone ever could.' },
+    { placement: 'After the opening hook', text: 'Every pattern in nature repeats this truth - at every scale, the same principle holds. Nothing is exempt. Nothing escapes the geometry.' },
+    { placement: 'Middle - consequence beat', text: 'The people who understand this stop fighting the current. They read it. They let it carry them further than effort alone ever could.' },
     { placement: 'Before the close', text: 'This is not philosophy. This is physics. The universe runs on this rule whether you acknowledge it or not.' }
   ],
   style_2_identity: [
     { placement: 'After the opening hook', text: 'The version of you that wins already exists. It was forged in the moments you kept going when every signal said stop.' },
-    { placement: 'Middle — consequence beat', text: 'Most people wait for the feeling. The person who wins shows up before the feeling arrives — and that is the entire difference.' },
+    { placement: 'Middle - consequence beat', text: 'Most people wait for the feeling. The person who wins shows up before the feeling arrives - and that is the entire difference.' },
     { placement: 'Before the close', text: 'Identity is not what you say you are. It is the pattern of what you do when no one is watching and nothing is guaranteed.' }
   ],
   style_3_hud: [
     { placement: 'After the opening hook', text: 'The mind is a system. Every input creates an output. Control the inputs long enough and the outputs stop surprising you.' },
-    { placement: 'Middle — consequence beat', text: 'Emotion is data. Discipline is a protocol. The person who separates the two gets to operate without interference from either.' },
+    { placement: 'Middle - consequence beat', text: 'Emotion is data. Discipline is a protocol. The person who separates the two gets to operate without interference from either.' },
     { placement: 'Before the close', text: 'You already have the processing power. What most people lack is the clarity to run the right program.' }
   ],
   style_4_forge: [
     { placement: 'After the opening hook', text: 'The blacksmith does not curse the iron for being hard. The resistance is the material. The resistance is the point.' },
-    { placement: 'Middle — consequence beat', text: 'Every time you wanted to quit and did not — that was a strike. You were building something. You may not have known it yet.' },
+    { placement: 'Middle - consequence beat', text: 'Every time you wanted to quit and did not - that was a strike. You were building something. You may not have known it yet.' },
     { placement: 'Before the close', text: 'The ones who cannot handle the heat never find out what they could have become. You are still here. That means something.' }
   ],
   style_5_blueprint: [
     { placement: 'After the opening hook', text: 'The mistake most people make is starting to build before they have the blueprint. Then they wonder why the structure keeps collapsing.' },
-    { placement: 'Middle — consequence beat', text: 'Clarity is not a luxury. It is load-bearing. Remove it and the entire system shifts. Install it and everything downstream becomes easier.' },
-    { placement: 'Before the close', text: 'Design your environment, your inputs, your defaults. The person who architects their own context does not need motivation — the system provides direction.' }
+    { placement: 'Middle - consequence beat', text: 'Clarity is not a luxury. It is load-bearing. Remove it and the entire system shifts. Install it and everything downstream becomes easier.' },
+    { placement: 'Before the close', text: 'Design your environment, your inputs, your defaults. The person who architects their own context does not need motivation - the system provides direction.' }
   ],
   style_6_obsidian: [
     { placement: 'After the opening hook', text: 'The mirror does not lie. It only shows what you have been unwilling to look at long enough to understand.' },
-    { placement: 'Middle — consequence beat', text: 'The patterns you keep repeating are not accidents. They are answers to questions you have not asked yourself yet.' },
+    { placement: 'Middle - consequence beat', text: 'The patterns you keep repeating are not accidents. They are answers to questions you have not asked yourself yet.' },
     { placement: 'Before the close', text: 'This is not about judgment. It is about information. What you see in that reflection is the exact data you need to move forward.' }
   ]
 };
@@ -550,9 +579,9 @@ function getPlatformFormatNotes(target) {
   if (target < 15) {
     notes.push({ type: 'format', title: 'Duration very short: < 15s', body: 'Under 15s limits narrative arc. Consider 30s minimum for a complete message.' });
   } else if (target > 60) {
-    notes.push({ type: 'format', title: 'Duration over 60s — completion rate risk', body: 'Instagram Reels above 60s see significantly lower watch-through rates. 38s is the engine sweet spot. Consider splitting into two reels.' });
+    notes.push({ type: 'format', title: 'Duration over 60s - completion rate risk', body: 'Instagram Reels above 60s see significantly lower watch-through rates. 38s is the engine sweet spot. Consider splitting into two reels.' });
   } else if (target >= 35 && target <= 42) {
-    notes.push({ type: 'format', title: `${target}s — optimal range`, body: 'This duration sits in the 35-42s sweet spot: enough for a full narrative arc while maintaining strong completion rates.' });
+    notes.push({ type: 'format', title: `${target}s - optimal range`, body: 'This duration sits in the 35-42s sweet spot: enough for a full narrative arc while maintaining strong completion rates.' });
   }
   return notes;
 }
@@ -575,7 +604,7 @@ function buildAdaptationSuggestions(spec) {
       type: 'style',
       badge: 'Style',
       title: `Keyword match suggests: ${alignment.suggestedName}`,
-      body: `Your concept keywords align more closely with "${alignment.suggestedName}" (${alignment.score} keyword hit${alignment.score > 1 ? 's' : ''}). Your current style is "${STYLES[styleId]?.name || styleId}". Both can work — this is a suggestion.`,
+      body: `Your concept keywords align more closely with "${alignment.suggestedName}" (${alignment.score} keyword hit${alignment.score > 1 ? 's' : ''}). Your current style is "${STYLES[styleId]?.name || styleId}". Both can work - this is a suggestion.`,
       switchTo: alignment.suggestedId
     });
   }
@@ -586,7 +615,7 @@ function buildAdaptationSuggestions(spec) {
     suggestions.push({
       type: 'script',
       badge: 'Script',
-      title: `Add ~${wordGap} words to reach ${target}s — ${lines.length} insertion point${lines.length > 1 ? 's' : ''}`,
+      title: `Add ~${wordGap} words to reach ${target}s - ${lines.length} insertion point${lines.length > 1 ? 's' : ''}`,
       body: `At ${WORDS_PER_SECOND} words/sec, you need ~${wordsNeeded} words for ${target}s. Current script is ${words} words (~${seconds}s). Insert the lines below in the indicated positions.`,
       insertions: lines.map(l => ({
         ...l,
@@ -623,7 +652,7 @@ function renderAdaptationSuggestions(suggestions) {
 
     const switchHtml = s.switchTo ? `
       <div class="adapt-style-switch">
-        <button type="button" class="btn-switch-style" onclick="selectStyle('${escapeHtml(s.switchTo)}', true)">
+        <button type="button" class="btn-switch-style" data-switch-style="${escapeHtml(s.switchTo)}">
           Switch to ${escapeHtml(STYLES[s.switchTo]?.name || s.switchTo)}
         </button>
       </div>
@@ -698,7 +727,7 @@ function buildValidationReport(spec) {
         status: 'warn', icon: '⚠',
         title: `Script short: ~${seconds}s audio vs ${target}s target`,
         detail: `${words} words → ~${seconds}s. Target needs ~${wordsNeeded} words.`,
-        fix: `Add ~${wordGap} words to the voiceover script.\nTip: extend the middle section — add a second example or deeper consequence beat.`
+        fix: `Add ~${wordGap} words to the voiceover script.\nTip: extend the middle section - add a second example or deeper consequence beat.`
       });
     } else {
       rows.push({
@@ -768,7 +797,7 @@ function loadSpec() {
   const duration = spec.target_duration_seconds || spec.duration_seconds;
   if (duration && DURATION_NOTES[duration] !== undefined || duration) {
     // Add to DURATION_NOTES if not present
-    if (!DURATION_NOTES[duration]) DURATION_NOTES[duration] = `${duration}s — from imported spec.`;
+    if (!DURATION_NOTES[duration]) DURATION_NOTES[duration] = `${duration}s - from imported spec.`;
     selectDuration(duration);
   }
 
@@ -856,6 +885,13 @@ function setupUiEvents() {
     const suggestion = target.closest('.suggestion');
     if (suggestion instanceof HTMLElement && suggestion.dataset.concept) {
       loadSuggestion(suggestion.dataset.concept);
+      return;
+    }
+
+    const switchBtn = target.closest('[data-switch-style]');
+    if (switchBtn instanceof HTMLElement && switchBtn.dataset.switchStyle) {
+      selectStyle(switchBtn.dataset.switchStyle, true);
+      return;
     }
   });
 }

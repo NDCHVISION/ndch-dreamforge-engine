@@ -540,7 +540,7 @@
 
   <div class="hero">
     <h1>NDCH Dreamforge Engine</h1>
-    <p>Input a concept. The engine auto-selects your visual style, writes the voiceover script, and generates your complete production package — ready for Runway, ElevenLabs, and Instagram.</p>
+    <p>Input a concept. The engine auto-selects your visual style, writes the voiceover script, and generates your complete production package - ready for Runway, ElevenLabs, and Instagram.</p>
   </div>
 
   <!-- IMPORT JSON PANEL -->
@@ -550,7 +550,7 @@
       <div class="import-chevron" id="importChevron">▼</div>
     </div>
     <div class="import-body" id="importBody">
-      <textarea id="jsonPasteArea" placeholder='Paste your reel JSON spec here — e.g. { "concept": "...", "style_id": "style_2_identity", "target_duration_seconds": 45, "voiceover": { "full_text": "..." } }'></textarea>
+      <textarea id="jsonPasteArea" placeholder='Paste your reel JSON spec here - e.g. { "concept": "...", "style_id": "style_2_identity", "target_duration_seconds": 45, "voiceover": { "full_text": "..." } }'></textarea>
       <button type="button" class="btn-load" id="loadSpecBtn">Load Spec</button>
       <div class="validation-report" id="validationReport"></div>
       <div id="adaptationPanel"></div>
@@ -559,13 +559,13 @@
 
   <!-- INPUT SECTION -->
   <div class="card">
-    <div class="card-title">01 — Your Concept</div>
-    <textarea id="conceptInput" placeholder="e.g. the value of being like water — patient, persistent, unstoppable. over time it wears down even the hardest mountains..." rows="3"></textarea>
+    <div class="card-title">01 - Your Concept</div>
+    <textarea id="conceptInput" placeholder="e.g. the value of being like water - patient, persistent, unstoppable. over time it wears down even the hardest mountains..." rows="3"></textarea>
     <div class="char-count"><span id="charCount">0</span> characters</div>
   </div>
 
   <div class="card">
-    <div class="card-title">02 — Visual Style</div>
+    <div class="card-title">02 - Visual Style</div>
     <div class="style-grid" id="styleGrid">
       <div class="style-card" data-style="style_1_fractal">
         <div class="style-name">Fractal Mindscape</div>
@@ -573,11 +573,11 @@
       </div>
       <div class="style-card" data-style="style_2_identity">
         <div class="style-name">Identity Shift</div>
-        <div class="style-desc">One figure, many versions — fear, struggle, triumph visible at once. Best for: transformation, athletes, breakthrough.</div>
+        <div class="style-desc">One figure, many versions - fear, struggle, triumph visible at once. Best for: transformation, athletes, breakthrough.</div>
       </div>
       <div class="style-card" data-style="style_3_hud">
         <div class="style-name">Mind Labyrinth HUD</div>
-        <div class="style-desc">Subconscious as a living circuit board — symbols, diagrams, neural maps. Best for: strategy, discipline, stoicism.</div>
+        <div class="style-desc">Subconscious as a living circuit board - symbols, diagrams, neural maps. Best for: strategy, discipline, stoicism.</div>
       </div>
       <div class="style-card" data-style="style_4_forge">
         <div class="style-name">Forge &amp; Ember</div>
@@ -585,7 +585,7 @@
       </div>
       <div class="style-card" data-style="style_5_blueprint">
         <div class="style-name">Blueprint Architect</div>
-        <div class="style-desc">Gold technical line drawings on black — frameworks, systems, deliberate construction. Best for: strategy, planning, systems.</div>
+        <div class="style-desc">Gold technical line drawings on black - frameworks, systems, deliberate construction. Best for: strategy, planning, systems.</div>
       </div>
       <div class="style-card" data-style="style_6_obsidian">
         <div class="style-name">Obsidian Mirror</div>
@@ -595,14 +595,14 @@
   </div>
 
   <div class="card">
-    <div class="card-title">03 — Target Duration</div>
+    <div class="card-title">03 - Target Duration</div>
     <div class="duration-row">
       <button type="button" class="dur-btn" data-dur="15" aria-label="Select 15 seconds duration">15s</button>
       <button type="button" class="dur-btn" data-dur="30" aria-label="Select 30 seconds duration">30s</button>
       <button type="button" class="dur-btn active" data-dur="38" aria-label="Select 38 seconds duration (recommended default)">38s ★</button>
       <button type="button" class="dur-btn" data-dur="60" aria-label="Select 60 seconds duration">60s</button>
     </div>
-    <div class="dur-note" id="durNote">38s — engine default sweet spot for full narrative arc.</div>
+    <div class="dur-note" id="durNote">38s - engine default sweet spot for full narrative arc.</div>
   </div>
 
   <button class="btn-generate" id="generateBtn">
@@ -616,7 +616,7 @@
     <div class="output-header">
       <div>
         <div class="output-title" id="outputTitle">Reel Brief</div>
-        <div class="output-meta">Style: <span id="metaStyle">—</span> &nbsp;·&nbsp; Duration: <span id="metaDuration">—</span> &nbsp;·&nbsp; Words: <span id="metaWords">—</span></div>
+        <div class="output-meta">Style: <span id="metaStyle">-</span> &nbsp;·&nbsp; Duration: <span id="metaDuration">-</span> &nbsp;·&nbsp; Words: <span id="metaWords">-</span></div>
       </div>
       <button class="btn-export" style="width:auto" id="exportBtn">Export Full JSON</button>
     </div>
@@ -632,7 +632,7 @@
     <div class="tab-panel active" id="tab-visual">
       <div class="output-block">
         <div class="output-block-header">
-          <div class="output-block-label">Runway / Kling — Positive Prompt</div>
+          <div class="output-block-label">Runway / Kling - Positive Prompt</div>
             <button class="btn-copy" data-copy-target="visualPrompt">Copy</button>
         </div>
         <div class="output-block-content" id="visualPrompt"></div>
@@ -656,7 +656,7 @@
     <div class="tab-panel" id="tab-voice">
       <div class="output-block">
         <div class="output-block-header">
-          <div class="output-block-label">Full Script — Paste into ElevenLabs</div>
+          <div class="output-block-label">Full Script - Paste into ElevenLabs</div>
             <button class="btn-copy" data-copy-target="fullScript">Copy</button>
         </div>
         <div class="output-block-content script" id="fullScript"></div>
