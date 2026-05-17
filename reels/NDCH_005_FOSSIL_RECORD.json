@@ -1,0 +1,59 @@
+{
+  "reel_id": "NDCH_005_FOSSIL_RECORD",
+  "engine_version": "1.0.0",
+  "concept": "Fossils - time turning soft tissue into stone",
+  "theme": "The Persistence of Truth",
+  "quote": "Time destroys everything that is temporary. It preserves everything that is true.",
+  "style_id": "style_1_fractal",
+  "format": {
+    "target_duration_seconds": 42
+  },
+  "visual_prompt": {
+    "primary_prompt": "Infinite slow camera descent through sedimentary rock strata. Rock walls (#1A1A1A to #0C0C0C) compressed by geological time - each stratum a different shade of bone white (#F5F2EB) and obsidian. Embedded in the layers: human silhouettes and handprints preserved in luminous gold (#C6A94F), frozen mid-gesture. Crimson mineral veins (#DC143C) trace through the rock like circulatory systems still pulsing with heat. The descent is slow and inevitable - not falling, but being lowered through time itself. Deep in the strata a single human form glows gold from within, complete and permanent. No text. Vertical 9:16. Center frame clear for subtitles. Mood: ancient, reverent, undeniable."
+  },
+  "voiceover": {
+    "script": {
+      "full_text": "They buried you and thought it was the end. They did not realize they were just providing the pressure required for you to become permanent. Every layer added was weight. Every year of silence was compression. What they called burial was preparation. Soft things rot. Surface things fade. But when you are crushed by the weight of expectations, what is false burns away. Only your core remains. Time does not destroy what is real. It removes everything that is not. Let the world be heavy. It is only making your mark impossible to erase.",
+      "word_count": 95,
+      "estimated_duration_seconds": 41,
+      "segments": [
+        {
+          "id": "hook",
+          "text": "They buried you and thought it was the end. They did not realize they were just providing the pressure required for you to become permanent.",
+          "timestamp_start": "0:00",
+          "timestamp_end": "0:13",
+          "visual_prompt": "Opening frame: a human handprint pressed into dark wet earth (#1A1A1A), soft and certain. Black sand begins to fall around it - not violently but inevitably, layer by layer. A single pulse of gold light (#C6A94F) radiates from the center of the print. Camera holds close as the first stratum of stone seals over it. Bone-white mineral dust (#F5F2EB) settles into the impression. The burial begins. Mood: quiet inevitability, no drama - just the long process starting."
+        },
+        {
+          "id": "process",
+          "text": "Every layer added was weight. Every year of silence was compression. What they called burial was preparation. Soft things rot. Surface things fade. But when you are crushed by the weight of expectations, what is false burns away. Only your core remains.",
+          "timestamp_start": "0:13",
+          "timestamp_end": "0:31",
+          "visual_prompt": "Time-lapse through geological strata. Layers of obsidian rock (#1A1A1A, #242424, #0C0C0C) compress in slow waves of geological time. The buried handprint is visible through each translucent stratum - dimmer at first then brightening as the compression increases. Crimson mineral veins (#DC143C) thread through the rock like arteries under pressure, still pulsing. Bone-white crystalline deposits (#F5F2EB) fill the impression from the outside in. The soft form is crystallizing into something harder and permanent. Camera drifts laterally along the strata wall - unhurried, geological. Mood: patient process, weight becoming structure."
+        },
+        {
+          "id": "reveal",
+          "text": "Time does not destroy what is real. It removes everything that is not. Let the world be heavy. It is only making your mark impossible to erase.",
+          "timestamp_start": "0:31",
+          "timestamp_end": "0:42",
+          "visual_prompt": "The camera finds the fully formed fossil - a luminous gold handprint (#C6A94F) embedded in deep obsidian rock (#0C0C0C), glowing from within with warm certainty. Camera slowly pulls back to reveal scale: the fossil is part of a vast canyon wall surrounded by thousands of other gold-preserved marks - a permanent record of every real thing that was buried and survived. Final frame holds still in front of the glowing fossil. Undeniable. Impossible to erase. Crimson veins (#DC143C) pulse once through the rock then go still. Mood: reverent completion, quiet authority."
+        }
+      ]
+    },
+    "elevenLabs_config": {
+      "voice_id": "C9Uh5MFptuXa176UlaXE",
+      "voice_settings": {
+        "stability": 0.35,
+        "similarity_boost": 0.9,
+        "style": 0.65,
+        "speed": 0.88
+      }
+    }
+  },
+  "instagram_config": {
+    "caption": "Become permanent.\n\nPressure does not just break. It preserves what matters.\n\nSave this for the days the weight feels like the end.",
+    "hashtags": ["#philosophy", "#timeless", "#mindset", "#growth", "#ndch", "#motivation", "#reels"]
+  },
+  "cover_asset_path": "assets/covers/NDCH_005_cover.jpg",
+  "cover_frame_timestamp": "0:32"
+}
